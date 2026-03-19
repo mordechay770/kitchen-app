@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kitchen App — אפיון ותכנון</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --primary: #FF6B35;
+      --primary-dark: #e05520;
+      --secondary: #2C3E50;
+      --accent: #F7C59F;
+      --bg: #0F1923;
+      --surface: #1A2535;
+      --surface2: #243044;
+      --text: #E8EDF5;
+      --text-muted: #8899AA;
+      --green: #27AE60;
+      --red: #E74C3C;
+      --yellow: #F39C12;
+      --blue: #3498DB;
+      --border: rgba(255,255,255,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Heebo', 'Roboto', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15,25,35,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px;
+      display: flex; align-items: center; gap: 32px;
+    }
+    .nav-logo { font-size: 18px; font-weight: 900; color: var(--primary); letter-spacing: -0.5px; }
+    .nav-links { display: flex; gap: 20px; flex: 1; }
+    .nav-link { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color .2s; cursor: pointer; }
+    .nav-link:hover { color: var(--primary); }
+
+    /* ── Sections ── */
+    section { padding: 72px 48px; max-width: 1100px; margin: 0 auto; }
+    .section-tag { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; }
+    h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin-bottom: 16px; }
+    h2 { font-size: 32px; font-weight: 700; margin-bottom: 24px; }
+    h3 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .lead { font-size: 18px; color: var(--text-muted); line-height: 1.7; max-width: 680px; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 72px 0; }
+
+    /* ── Hero ── */
+    .hero { padding: 100px 48px 80px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,107,53,0.12); border: 1px solid rgba(255,107,53,0.3);
+      color: var(--primary); padding: 6px 14px; border-radius: 100px;
+      font-size: 13px; font-weight: 600; margin-bottom: 28px;
+    }
+    .hero-badge::before { content: '🍳'; }
+    .hero h1 span { color: var(--primary); }
+    .hero-meta { display: flex; gap: 32px; margin-top: 32px; }
+    .hero-meta-item { display: flex; flex-direction: column; gap: 4px; }
+    .hero-meta-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .hero-meta-value { font-size: 15px; font-weight: 700; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .card-highlight {
+      background: linear-gradient(135deg, rgba(255,107,53,0.12), rgba(247,197,159,0.06));
+      border-color: rgba(255,107,53,0.3);
+    }
+    .card-icon { font-size: 32px; margin-bottom: 12px; }
+    .card p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+
+    /* ── Problem block ── */
+    .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
+    .problem-item { display: flex; gap: 14px; align-items: flex-start; }
+    .problem-icon { font-size: 24px; flex-shrink: 0; }
+    .problem-text strong { display: block; font-size: 15px; margin-bottom: 4px; }
+    .problem-text span { font-size: 13px; color: var(--text-muted); }
+
+    /* ── Market Research Table ── */
+    .market-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+    .market-table th {
+      text-align: right; padding: 10px 16px; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+    }
+    .market-table td {
+      padding: 14px 16px; font-size: 14px;
+      border-bottom: 1px solid var(--border); vertical-align: top;
+    }
+    .market-table tr:last-child td { border-bottom: none; }
+    .market-table tr.recommended td { background: rgba(255,107,53,0.07); }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 100px;
+      font-size: 11px; font-weight: 700;
+    }
+    .badge-green { background: rgba(39,174,96,0.15); color: var(--green); }
+    .badge-orange { background: rgba(255,107,53,0.15); color: var(--primary); }
+    .badge-red { background: rgba(231,76,60,0.15); color: var(--red); }
+    .badge-blue { background: rgba(52,152,219,0.15); color: var(--blue); }
+    .price-tag { font-weight: 700; font-size: 16px; }
+    .pros-cons { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+    .pros-cons .pro::before { content: '✓ '; color: var(--green); }
+    .pros-cons .con::before { content: '✗ '; color: var(--red); }
+
+    /* ── Option Cards ── */
+    .option-card { margin-bottom: 32px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
+    .option-header {
+      padding: 20px 28px; display: flex; align-items: center;
+      justify-content: space-between; border-bottom: 1px solid var(--border);
+    }
+    .option-header h3 { margin: 0; font-size: 20px; }
+    .option-body { padding: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .option-diagram { background: var(--surface2); border-radius: 12px; padding: 20px; }
+    .option-list { list-style: none; }
+    .option-list li { padding: 6px 0; font-size: 14px; border-bottom: 1px solid var(--border); }
+    .option-list li:last-child { border-bottom: none; }
+    .option-list li::before { margin-left: 8px; }
+    .opt1-header { background: linear-gradient(135deg, #1A2535, #0F1923); }
+    .opt2-header { background: linear-gradient(135deg, #1a2535, #162234); }
+    .opt3-header { background: linear-gradient(135deg, rgba(255,107,53,0.15), #1A2535); border-bottom-color: rgba(255,107,53,0.2); }
+
+    /* ── Flow Diagram ── */
+    .flow-step {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface2); border-radius: 10px; padding: 10px 16px;
+      margin-bottom: 8px; font-size: 13px;
+    }
+    .flow-step .step-num {
+      width: 24px; height: 24px; background: var(--primary); color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .flow-arrow { text-align: center; color: var(--text-muted); font-size: 18px; margin: 2px 0; }
+
+    /* ── Mermaid ── */
+    .mermaid-wrap { background: var(--surface); border-radius: 16px; padding: 32px; overflow-x: auto; }
+    .mermaid { font-size: 14px !important; }
+
+    /* ── Color Palette ── */
+    .palette { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 24px; }
+    .swatch { border-radius: 12px; overflow: hidden; width: 100px; }
+    .swatch-color { height: 64px; }
+    .swatch-label { background: var(--surface); padding: 8px; font-size: 11px; text-align: center; }
+    .swatch-name { font-weight: 700; }
+    .swatch-hex { color: var(--text-muted); font-family: monospace; }
+
+    /* ── App Mockup ── */
+    .mockup-container { display: grid; grid-template-columns: 240px 1fr; gap: 32px; align-items: start; margin-top: 32px; }
+    .phone-frame {
+      width: 240px; background: #111; border-radius: 36px; padding: 14px;
+      border: 3px solid #333; box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .phone-notch { width: 80px; height: 24px; background: #111; border-radius: 0 0 14px 14px; margin: 0 auto 8px; }
+    .phone-screen { background: #0F1923; border-radius: 24px; overflow: hidden; min-height: 420px; }
+    .phone-screen .screen-header {
+      background: var(--primary); padding: 10px 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .phone-screen .screen-header .back { font-size: 16px; }
+    .phone-screen .screen-header .title { font-size: 13px; font-weight: 700; color: #fff; }
+    .phone-screen .screen-body { padding: 12px; }
+    .phone-order-card {
+      background: var(--surface); border-radius: 10px; padding: 12px; margin-bottom: 8px;
+      border-right: 3px solid var(--primary);
+    }
+    .phone-order-name { font-size: 12px; font-weight: 700; }
+    .phone-order-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .phone-order-status { font-size: 10px; margin-top: 6px; }
+    .phone-dish-card {
+      background: var(--surface); border-radius: 8px; padding: 10px; margin-bottom: 6px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .phone-dish-name { font-size: 11px; font-weight: 600; }
+    .phone-dish-qty { font-size: 14px; font-weight: 900; color: var(--primary); }
+    .phone-recipe-header { background: var(--surface2); padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; }
+    .phone-recipe-multiplier { font-size: 20px; font-weight: 900; color: var(--primary); }
+    .phone-recipe-sub { font-size: 10px; color: var(--text-muted); }
+    .phone-ingredient-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 11px;
+    }
+    .phone-ingredient-qty { font-weight: 700; color: var(--accent); }
+
+    .desktop-frame {
+      background: #111; border-radius: 12px; padding: 10px;
+      border: 2px solid #333; box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+    }
+    .desktop-screen { background: #0F1923; border-radius: 8px; overflow: hidden; }
+    .desktop-topbar {
+      background: var(--surface); padding: 8px 16px;
+      display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border);
+    }
+    .desktop-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .desktop-url { flex: 1; background: var(--surface2); border-radius: 4px; height: 18px; margin: 0 16px; }
+    .desktop-body { display: grid; grid-template-columns: 200px 1fr; min-height: 340px; }
+    .desktop-sidebar { background: var(--surface); border-left: 1px solid var(--border); padding: 12px; }
+    .desktop-sidebar-item {
+      padding: 8px 12px; border-radius: 8px; font-size: 11px; margin-bottom: 4px; cursor: pointer;
+    }
+    .desktop-sidebar-item.active { background: rgba(255,107,53,0.15); color: var(--primary); font-weight: 700; }
+    .desktop-sidebar-item:not(.active) { color: var(--text-muted); }
+    .desktop-main { padding: 16px; }
+    .desktop-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    .desktop-stat {
+      background: var(--surface); border-radius: 8px; padding: 10px;
+      text-align: center; border-bottom: 2px solid;
+    }
+    .desktop-stat-val { font-size: 20px; font-weight: 900; }
+    .desktop-stat-lbl { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+    .desktop-table-header {
+      display: flex; gap: 4px; padding: 6px 10px; background: var(--surface2);
+      border-radius: 6px 6px 0 0; font-size: 10px; color: var(--text-muted); margin-bottom: 1px;
+    }
+    .desktop-table-row {
+      display: flex; gap: 4px; padding: 8px 10px; background: var(--surface);
+      border-radius: 0; font-size: 11px; margin-bottom: 1px; align-items: center;
+    }
+    .desktop-col-1 { flex: 2; }
+    .desktop-col-2 { flex: 2; }
+    .desktop-col-3 { flex: 1; text-align: center; }
+    .desktop-col-4 { flex: 1; text-align: center; }
+    .desktop-col-5 { flex: 1; text-align: center; }
+    .btn-sm { padding: 3px 10px; border-radius: 100px; font-size: 10px; font-weight: 700; border: none; cursor: pointer; }
+    .btn-primary-sm { background: var(--primary); color: #fff; }
+
+    /* ── Buttons Section ── */
+    .btn-showcase { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 24px; align-items: center; }
+    .btn { padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all .2s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: rgba(231,76,60,0.15); color: var(--red); border: 1px solid rgba(231,76,60,0.3); }
+    .btn-success { background: rgba(39,174,96,0.15); color: var(--green); border: 1px solid rgba(39,174,96,0.3); }
+    .btn-lg { padding: 16px 36px; font-size: 16px; border-radius: 14px; }
+    .btn-icon { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 10px; font-size: 18px; }
+
+    /* ── Architecture ── */
+    .arch-diagram { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .arch-layer {
+      background: var(--surface); border-radius: 14px; padding: 20px 28px;
+      border-right: 4px solid var(--primary); position: relative;
+    }
+    .arch-layer h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); margin-bottom: 12px; }
+    .arch-items { display: flex; gap: 12px; flex-wrap: wrap; }
+    .arch-item {
+      background: var(--surface2); border-radius: 8px; padding: 8px 14px;
+      font-size: 13px; border: 1px solid var(--border);
+    }
+    .arch-item.highlight { border-color: rgba(255,107,53,0.4); background: rgba(255,107,53,0.08); }
+    .arch-arrow { text-align: center; color: var(--text-muted); font-size: 24px; margin: -4px 0; }
+
+    /* ── QR Section ── */
+    .qr-demo { display: flex; gap: 24px; align-items: center; margin-top: 24px; flex-wrap: wrap; }
+    .qr-box {
+      width: 120px; height: 120px; background: #fff; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; font-size: 48px;
+    }
+    .qr-info { flex: 1; }
+    .qr-url { font-family: monospace; font-size: 13px; background: var(--surface2); padding: 8px 14px; border-radius: 8px; margin-top: 8px; word-break: break-all; color: var(--accent); }
+
+    /* ── Timeline ── */
+    .timeline { position: relative; padding-right: 32px; }
+    .timeline::before { content: ''; position: absolute; right: 10px; top: 8px; bottom: 8px; width: 2px; background: var(--border); }
+    .timeline-item { position: relative; padding: 16px 28px 16px 0; }
+    .timeline-item::before {
+      content: ''; position: absolute; right: 4px; top: 22px;
+      width: 14px; height: 14px; background: var(--surface2); border: 2px solid var(--primary);
+      border-radius: 50%;
+    }
+    .timeline-item.done::before { background: var(--primary); }
+    .timeline-week { font-size: 11px; color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .timeline-task { font-size: 14px; font-weight: 600; }
+    .timeline-detail { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      section { padding: 48px 20px; }
+      .hero { padding: 60px 20px 48px; }
+      h1 { font-size: 36px; }
+      .option-body { grid-template-columns: 1fr; }
+      .problem-grid { grid-template-columns: 1fr; }
+      .mockup-container { grid-template-columns: 1fr; }
+      .desktop-frame { display: none; }
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">Kitchen App</div>
+  <div class="nav-links">
+    <a class="nav-link" href="#market">סקר שוק</a>
+    <a class="nav-link" href="#options">3 אפשרויות</a>
+    <a class="nav-link" href="#design">עיצוב</a>
+    <a class="nav-link" href="#mockups">מוקאפים</a>
+    <a class="nav-link" href="#arch">ארכיטקטורה</a>
+    <a class="nav-link" href="#timeline">לוח זמנים</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="hero-badge">אפיון טכני · מרץ 2026</div>
+  <h1>אפליקציית מטבח<br/><span>ייעודית לצוות</span></h1>
+  <p class="lead" style="direction:rtl;">
+    ממשק דיגיטלי לטבחים ומנהל המטבח — לראות הזמנות היום, כמויות מצטברות,
+    מתכון מוכפל לפי כמות ולהדפיס הכל בקליק אחד.
+  </p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <span class="hero-meta-label">מערכת נוכחית</span>
+      <span class="hero-meta-value">Airtable + Make.com</span>
+    </div>
+    <div class="hero-meta-item">
+      <span class="hero-meta-label">שירות PDF</span>
+      <span class="hero-meta-value">PDF.co API</span>
+    </div>
+    <div class="hero-meta-item">
+      <span class="hero-meta-label">Base ID</span>
+      <span class="hero-meta-value" style="font-family:monospace;font-size:12px;">appM61hkcOruhdBuv</span>
+    </div>
+    <div class="hero-meta-item">
+      <span class="hero-meta-label">טבלאות</span>
+      <span class="hero-meta-value">38 טבלאות</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- PROBLEM -->
+<section>
+  <div class="section-tag">הבעיה הנוכחית</div>
+  <h2>מה חסר היום?</h2>
+  <p class="lead">הצוות מקבל PDFs סטטיים. אין ממשק אינטרקטיבי, אין חישוב מתכון בזמן אמת.</p>
+  <div class="problem-grid">
+    <div class="problem-item">
+      <div class="problem-icon">📄</div>
+      <div class="problem-text">
+        <strong>PDF בלבד</strong>
+        <span>הטבח מקבל נייר — לא ניתן לחפש, לסנן או לעדכן בזמן אמת</span>
+      </div>
+    </div>
+    <div class="problem-item">
+      <div class="problem-icon">🧮</div>
+      <div class="problem-text">
+        <strong>אין הכפלת מתכון אוטומטית</strong>
+        <span>חישוב ידני של כמויות לפי מספר המנות שהוזמנו — מקור שגיאות</span>
+      </div>
+    </div>
+    <div class="problem-item">
+      <div class="problem-icon">📦</div>
+      <div class="problem-text">
+        <strong>אין אגרגציה חוצת הזמנות</strong>
+        <span>אין תצוגה של "כמה סה"כ מנות ממאכל X להיום" מכל ההזמנות יחד</span>
+      </div>
+    </div>
+    <div class="problem-item">
+      <div class="problem-icon">🔗</div>
+      <div class="problem-text">
+        <strong>אין גישה מהירה למתכון</strong>
+        <span>הטבח צריך לחפש ידנית — לא ניתן לסרוק QR ולקפוץ ישירות למתכון</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- MARKET RESEARCH -->
+<section id="market">
+  <div class="section-tag">סקר שוק</div>
+  <h2>השוואת פלטפורמות</h2>
+  <p class="lead">5 אפשרויות נבחנו — מ-Make.com Webhooks ועד custom app</p>
+
+  <div style="background:var(--surface);border-radius:16px;overflow:hidden;margin-top:28px;border:1px solid var(--border);">
+    <table class="market-table">
+      <thead>
+        <tr>
+          <th>פלטפורמה</th>
+          <th>עלות/חודש</th>
+          <th>יתרונות</th>
+          <th>חסרונות</th>
+          <th>מומלץ?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Make.com Webhook</strong><br/><span style="font-size:12px;color:var(--text-muted);">HTML response</span></td>
+          <td class="price-tag">$0</td>
+          <td class="pros-cons">
+            <div class="pro">ללא עלות נוספת</div>
+            <div class="pro">בנייה מהירה</div>
+          </td>
+          <td class="pros-cons">
+            <div class="con">חד-פעמי בלבד</div>
+            <div class="con">אין ניווט</div>
+            <div class="con">אין הדפסה נוחה</div>
+          </td>
+          <td><span class="badge badge-red">מינימלי</span></td>
+        </tr>
+        <tr>
+          <td><strong>Softr</strong><br/><span style="font-size:12px;color:var(--text-muted);">No-code builder</span></td>
+          <td class="price-tag">$59–167</td>
+          <td class="pros-cons">
+            <div class="pro">Airtable native</div>
+            <div class="pro">Auth מובנה</div>
+            <div class="pro">PWA mobile</div>
+          </td>
+          <td class="pros-cons">
+            <div class="con">אין חישובים מורכבים</div>
+            <div class="con">עלות חודשית קבועה</div>
+          </td>
+          <td><span class="badge badge-blue">אפשרי</span></td>
+        </tr>
+        <tr>
+          <td><strong>Glide</strong><br/><span style="font-size:12px;color:var(--text-muted);">Mobile-first PWA</span></td>
+          <td class="price-tag">$69–199</td>
+          <td class="pros-cons">
+            <div class="pro">Mobile-first</div>
+            <div class="pro">UX מוכן</div>
+          </td>
+          <td class="pros-cons">
+            <div class="con">Airtable sync עקיף</div>
+            <div class="con">חישובים מוגבלים</div>
+            <div class="con">יקר</div>
+          </td>
+          <td><span class="badge badge-red">יקר מדי</span></td>
+        </tr>
+        <tr>
+          <td><strong>Stacker</strong><br/><span style="font-size:12px;color:var(--text-muted);">Airtable-focused</span></td>
+          <td class="price-tag">$349</td>
+          <td class="pros-cons">
+            <div class="pro">Airtable-focused</div>
+          </td>
+          <td class="pros-cons">
+            <div class="con">יקר מאוד</div>
+            <div class="con">Overkill</div>
+          </td>
+          <td><span class="badge badge-red">לא</span></td>
+        </tr>
+        <tr class="recommended">
+          <td><strong>Custom Web App</strong> ⭐<br/><span style="font-size:12px;color:var(--text-muted);">Vanilla JS + Airtable API</span></td>
+          <td class="price-tag" style="color:var(--green);">$0</td>
+          <td class="pros-cons">
+            <div class="pro">גמישות מלאה</div>
+            <div class="pro">חישובי מתכון מלאים</div>
+            <div class="pro">הדפסה מותאמת</div>
+            <div class="pro">QR codes מובנים</div>
+          </td>
+          <td class="pros-cons">
+            <div class="con">~2–3 ימי בנייה</div>
+          </td>
+          <td><span class="badge badge-green">מומלץ</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- 3 OPTIONS -->
+<section id="options">
+  <div class="section-tag">3 אפשרויות</div>
+  <h2>תכנון מפורט לכל אפשרות</h2>
+
+  <!-- Option 1 -->
+  <div class="option-card">
+    <div class="option-header opt1-header">
+      <div>
+        <h3>אפשרות 1: Make.com Webhook Response</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">הטבח סורק QR → HTML דינמי נשלח</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <span class="badge badge-green">$0</span>
+        <span class="badge badge-blue">יום אחד</span>
+        <span class="badge badge-red">מינימלי</span>
+      </div>
+    </div>
+    <div class="option-body">
+      <div>
+        <h4 style="margin-bottom:12px;">זרימת תהליך</h4>
+        <div class="option-diagram">
+          <div class="flow-step"><div class="step-num">1</div> <span>PDF מודפס עם QR Code על כל מאכל</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">2</div> <span>הטבח סורק QR (מצלמה רגילה)</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">3</div> <span>Make.com Webhook מקבל item_id + qty</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">4</div> <span>Make.com מושך מתכון מ-Airtable</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">5</div> <span>HTML Response עם מתכון × כמות</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">6</div> <span>הטבח רואה ומדפיס מהדפדפן</span></div>
+        </div>
+      </div>
+      <div>
+        <h4 style="margin-bottom:12px;">יתרונות וחסרונות</h4>
+        <ul class="option-list">
+          <li style="color:var(--green);">✅ ללא hosting, ללא עלות נוספת</li>
+          <li style="color:var(--green);">✅ קל מאוד לממש — Make.com בלבד</li>
+          <li style="color:var(--green);">✅ עובד מכל מכשיר עם מצלמה</li>
+          <li style="color:var(--red);">❌ חד-פעמי — אין ניווט, אין רשימות</li>
+          <li style="color:var(--red);">❌ אין תצוגת "הזמנות היום"</li>
+          <li style="color:var(--red);">❌ Make.com חייב לרוץ ולחשב בכל סריקה</li>
+          <li style="color:var(--red);">❌ אין אגרגציה חוצת הזמנות</li>
+        </ul>
+        <div style="margin-top:20px;padding:14px;background:var(--surface2);border-radius:10px;font-size:13px;">
+          <strong>URL לדוגמה:</strong><br/>
+          <code style="font-size:11px;color:var(--accent);">https://hook.make.com/xxx?item_id=recABC&qty=8</code>
+        </div>
+        <div style="margin-top:12px;font-size:13px;color:var(--text-muted);">
+          <strong style="color:var(--text);">מסקנה:</strong> מתאים כ-Quick Win ראשוני לפני בניית האפליקציה.
+          ניתן לממש תוך יום ולהשתמש בו כ-MVP.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option 2 -->
+  <div class="option-card">
+    <div class="option-header opt2-header">
+      <div>
+        <h3>אפשרות 2: Softr / No-Code App</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">פלטפורמה מוכנה עם Airtable integration</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <span class="badge badge-red">$59+/חודש</span>
+        <span class="badge badge-blue">1–2 ימים</span>
+        <span class="badge badge-blue">אפשרי</span>
+      </div>
+    </div>
+    <div class="option-body">
+      <div>
+        <h4 style="margin-bottom:12px;">מה Softr מאפשר</h4>
+        <div class="option-diagram">
+          <div class="flow-step"><div class="step-num" style="background:var(--blue);">A</div> <span>רשימת הזמנות (List Block)</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num" style="background:var(--blue);">B</div> <span>פירוט הזמנה (Details Block)</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num" style="background:var(--blue);">C</div> <span>Auth מובנה לצוות</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num" style="background:var(--red);">✗</div> <span style="color:var(--text-muted);">חישוב מתכון × כמות — <strong style="color:var(--red);">לא אפשרי</strong></span></div>
+        </div>
+      </div>
+      <div>
+        <h4 style="margin-bottom:12px;">השוואה</h4>
+        <ul class="option-list">
+          <li style="color:var(--green);">✅ Airtable native — sync אוטומטי</li>
+          <li style="color:var(--green);">✅ Auth מובנה (login לצוות)</li>
+          <li style="color:var(--green);">✅ PWA — עובד כמו אפליקציה</li>
+          <li style="color:var(--green);">✅ 1–2 ימי הקמה</li>
+          <li style="color:var(--red);">❌ אין חישוב multiplier לרכיבי מתכון</li>
+          <li style="color:var(--red);">❌ עלות $59+/חודש — $700/שנה</li>
+          <li style="color:var(--red);">❌ תלות ב-vendor</li>
+          <li style="color:var(--red);">❌ עיצוב ועמודים מוגבלים</li>
+        </ul>
+        <div style="margin-top:12px;font-size:13px;color:var(--text-muted);">
+          <strong style="color:var(--text);">מסקנה:</strong> טוב לתצוגת נתונים פשוטה, אבל לא מסוגל לחשב
+          <code style="font-size:11px;">multiplier = qty ÷ base_portions</code> ולהציג מתכון מותאם.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option 3 -->
+  <div class="option-card" style="border-color:rgba(255,107,53,0.3);">
+    <div class="option-header opt3-header">
+      <div>
+        <h3>⭐ אפשרות 3: Custom Web App (מומלץ)</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">Vanilla JS + Airtable REST API + GitHub Pages</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <span class="badge badge-green">$0</span>
+        <span class="badge badge-orange">2–3 ימים</span>
+        <span class="badge badge-green">גמישות מלאה</span>
+      </div>
+    </div>
+    <div class="option-body">
+      <div>
+        <h4 style="margin-bottom:12px;">מבנה הנתונים</h4>
+        <div class="option-diagram">
+          <div class="flow-step"><div class="step-num">1</div> <span>הזמנות היום — filter by date</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">2</div> <span>שורות הזמנה — linked records</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">3</div> <span>מאכל + מתכון (lookup)</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="step-num">4</div> <span>כמויות BOM (רכיבים)</span></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" style="border:1px solid rgba(255,107,53,0.4);">
+            <div class="step-num">✓</div>
+            <span><strong>multiplier = qty ÷ base_portions</strong><br/>
+            כל רכיב × multiplier</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h4 style="margin-bottom:12px;">יכולות</h4>
+        <ul class="option-list">
+          <li style="color:var(--green);">✅ הכפלת מתכון מדויקת לפי הזמנה</li>
+          <li style="color:var(--green);">✅ אגרגציה: כמות כוללת למאכל (כל הזמנות)</li>
+          <li style="color:var(--green);">✅ QR code לכל מאכל → מתכון מיידי</li>
+          <li style="color:var(--green);">✅ הדפסה מותאמת (@media print)</li>
+          <li style="color:var(--green);">✅ $0 hosting (GitHub Pages / Vercel)</li>
+          <li style="color:var(--green);">✅ עובד מובייל + דסקטופ</li>
+          <li style="color:var(--green);">✅ ניתן להוסיף features בקלות</li>
+          <li style="color:var(--yellow);">⚠ PAT token — לשמור בסיס</li>
+        </ul>
+        <div style="margin-top:16px;padding:14px;background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.2);border-radius:10px;font-size:13px;">
+          <strong>חישוב מפתח:</strong><br/>
+          <code style="color:var(--accent);">multiplier = ordered_qty / recipe_base_portions</code><br/>
+          <code style="color:var(--accent);">ingredient = brutto_grams × multiplier</code>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- DESIGN -->
+<section id="design">
+  <div class="section-tag">עיצוב</div>
+  <h2>פלטת צבעים וUI</h2>
+  <p class="lead">ממשק כהה, ניגוד גבוה — מתאים לסביבת מטבח עם תאורה חזקה</p>
+
+  <div class="palette">
+    <div class="swatch">
+      <div class="swatch-color" style="background:#FF6B35;"></div>
+      <div class="swatch-label"><div class="swatch-name">Primary</div><div class="swatch-hex">#FF6B35</div></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#F7C59F;"></div>
+      <div class="swatch-label"><div class="swatch-name">Accent</div><div class="swatch-hex">#F7C59F</div></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#0F1923;"></div>
+      <div class="swatch-label"><div class="swatch-name">Background</div><div class="swatch-hex">#0F1923</div></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#1A2535;"></div>
+      <div class="swatch-label"><div class="swatch-name">Surface</div><div class="swatch-hex">#1A2535</div></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#27AE60;"></div>
+      <div class="swatch-label"><div class="swatch-name">Success</div><div class="swatch-hex">#27AE60</div></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#E74C3C;"></div>
+      <div class="swatch-label"><div class="swatch-name">Danger</div><div class="swatch-hex">#E74C3C</div></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background:#F39C12;"></div>
+      <div class="swatch-label"><div class="swatch-name">Warning</div><div class="swatch-hex">#F39C12</div></div>
+    </div>
+  </div>
+
+  <div style="margin-top:40px;">
+    <h3>כפתורים וUI Components</h3>
+    <div class="btn-showcase">
+      <button class="btn btn-primary">🍳 הזמנות היום</button>
+      <button class="btn btn-primary btn-lg">📋 הצג מתכון</button>
+      <button class="btn btn-secondary">◀ חזרה</button>
+      <button class="btn btn-ghost">📥 ייצוא PDF</button>
+      <button class="btn btn-success">✓ הושלם</button>
+      <button class="btn btn-danger">✗ בוטל</button>
+      <button class="btn btn-icon" style="background:var(--surface2);">🖨️</button>
+      <button class="btn btn-icon" style="background:var(--surface2);">📷</button>
+      <button class="btn btn-icon btn-primary">⊕</button>
+    </div>
+  </div>
+
+  <div style="margin-top:40px;">
+    <h3>Status Badges</h3>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
+      <span class="badge badge-green" style="padding:6px 16px;font-size:13px;">✓ הושלם</span>
+      <span class="badge badge-orange" style="padding:6px 16px;font-size:13px;">🕐 בהכנה</span>
+      <span class="badge badge-blue" style="padding:6px 16px;font-size:13px;">📋 חדש</span>
+      <span class="badge badge-red" style="padding:6px 16px;font-size:13px;">✗ בוטל</span>
+      <span class="badge" style="padding:6px 16px;font-size:13px;background:rgba(255,255,255,0.08);color:var(--text-muted);">— ממתין</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- MOCKUPS -->
+<section id="mockups">
+  <div class="section-tag">מוקאפים</div>
+  <h2>עיצוב מסכים</h2>
+
+  <!-- DASHBOARD MOCKUP -->
+  <h3 style="margin-bottom:20px;color:var(--text-muted);">דסקטופ — דשבורד הזמנות היום</h3>
+  <div class="desktop-frame">
+    <div class="desktop-screen">
+      <div class="desktop-topbar">
+        <div class="desktop-dot" style="background:#ff5f57;"></div>
+        <div class="desktop-dot" style="background:#febc2e;"></div>
+        <div class="desktop-dot" style="background:#28c840;"></div>
+        <div class="desktop-url"></div>
+        <span style="font-size:10px;color:var(--text-muted);">kitchen-app.vercel.app</span>
+      </div>
+      <div class="desktop-body">
+        <div class="desktop-sidebar">
+          <div style="font-size:12px;font-weight:900;color:var(--primary);margin-bottom:16px;padding:8px 12px;">🍳 Kitchen</div>
+          <div class="desktop-sidebar-item active">📋 הזמנות היום</div>
+          <div class="desktop-sidebar-item">🧮 כמויות מצטברות</div>
+          <div class="desktop-sidebar-item">📖 מתכונים</div>
+          <div class="desktop-sidebar-item">🖨️ הדפסה</div>
+          <div style="position:absolute;bottom:12px;font-size:10px;color:var(--text-muted);padding:0 12px;">
+            יום ג' · 18.3.2026
+          </div>
+        </div>
+        <div class="desktop-main">
+          <div class="desktop-stat-row">
+            <div class="desktop-stat" style="border-color:var(--primary);">
+              <div class="desktop-stat-val" style="color:var(--primary);">7</div>
+              <div class="desktop-stat-lbl">הזמנות היום</div>
+            </div>
+            <div class="desktop-stat" style="border-color:var(--blue);">
+              <div class="desktop-stat-val" style="color:var(--blue);">143</div>
+              <div class="desktop-stat-lbl">סה"כ אורחים</div>
+            </div>
+            <div class="desktop-stat" style="border-color:var(--green);">
+              <div class="desktop-stat-val" style="color:var(--green);">3</div>
+              <div class="desktop-stat-lbl">הושלמו</div>
+            </div>
+            <div class="desktop-stat" style="border-color:var(--yellow);">
+              <div class="desktop-stat-val" style="color:var(--yellow);">4</div>
+              <div class="desktop-stat-lbl">בהכנה</div>
+            </div>
+          </div>
+          <div class="desktop-table-header">
+            <div class="desktop-col-1">שם לקוח</div>
+            <div class="desktop-col-2">כתובת / סוג</div>
+            <div class="desktop-col-3">שעה</div>
+            <div class="desktop-col-4">אנשים</div>
+            <div class="desktop-col-5">סטטוס</div>
+          </div>
+          <div class="desktop-table-row" style="border-right:2px solid var(--green);">
+            <div class="desktop-col-1" style="font-weight:700;">Алексей Попов</div>
+            <div class="desktop-col-2" style="color:var(--text-muted);font-size:10px;">ул. Ленина 5</div>
+            <div class="desktop-col-3">14:00</div>
+            <div class="desktop-col-4">25</div>
+            <div class="desktop-col-5"><span class="badge badge-green" style="font-size:9px;">הושלם</span></div>
+          </div>
+          <div class="desktop-table-row" style="border-right:2px solid var(--primary);">
+            <div class="desktop-col-1" style="font-weight:700;">Анна Ким</div>
+            <div class="desktop-col-2" style="color:var(--text-muted);font-size:10px;">Самовывоз</div>
+            <div class="desktop-col-3">16:30</div>
+            <div class="desktop-col-4">40</div>
+            <div class="desktop-col-5"><span class="badge badge-orange" style="font-size:9px;">בהכנה</span></div>
+          </div>
+          <div class="desktop-table-row" style="border-right:2px solid var(--primary);">
+            <div class="desktop-col-1" style="font-weight:700;">Иван Смирнов</div>
+            <div class="desktop-col-2" style="color:var(--text-muted);font-size:10px;">пр. Мира 12</div>
+            <div class="desktop-col-3">18:00</div>
+            <div class="desktop-col-4">60</div>
+            <div class="desktop-col-5"><span class="badge badge-blue" style="font-size:9px;">חדש</span></div>
+          </div>
+          <div class="desktop-table-row" style="border-right:2px solid var(--yellow);">
+            <div class="desktop-col-1" style="font-weight:700;">Мария Алиева</div>
+            <div class="desktop-col-2" style="color:var(--text-muted);font-size:10px;">ул. Абая 88</div>
+            <div class="desktop-col-3">19:00</div>
+            <div class="desktop-col-4">18</div>
+            <div class="desktop-col-5"><span class="badge badge-orange" style="font-size:9px;">בהכנה</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE MOCKUPS -->
+  <h3 style="margin:40px 0 20px;color:var(--text-muted);">מובייל — 3 מסכים עיקריים</h3>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:flex-start;">
+
+    <!-- Phone 1: Orders -->
+    <div>
+      <div style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:8px;">הזמנות היום</div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="screen-header">
+            <span class="title">🍳 הזמנות · 18.3.2026</span>
+          </div>
+          <div class="screen-body">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">7 הזמנות · 143 אורחים</div>
+            <div class="phone-order-card">
+              <div class="phone-order-name">Анна Ким</div>
+              <div class="phone-order-meta">16:30 · 40 אנשים · Самовывоз</div>
+              <div class="phone-order-status"><span class="badge badge-orange" style="font-size:9px;">בהכנה</span></div>
+            </div>
+            <div class="phone-order-card" style="border-color:var(--green);">
+              <div class="phone-order-name">Алексей Попов</div>
+              <div class="phone-order-meta">14:00 · 25 אנשים · משלוח</div>
+              <div class="phone-order-status"><span class="badge badge-green" style="font-size:9px;">הושלם</span></div>
+            </div>
+            <div class="phone-order-card" style="border-color:var(--blue);">
+              <div class="phone-order-name">Иван Смирнов</div>
+              <div class="phone-order-meta">18:00 · 60 אנשים · משלוח</div>
+              <div class="phone-order-status"><span class="badge badge-blue" style="font-size:9px;">חדש</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone 2: Order Detail -->
+    <div>
+      <div style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:8px;">פירוט הזמנה</div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="screen-header">
+            <span class="back">◀</span>
+            <span class="title">Анна Ким · 40 אנשים</span>
+          </div>
+          <div class="screen-body">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">5 מאכלים</div>
+            <div class="phone-dish-card">
+              <div>
+                <div class="phone-dish-name">Самса с мясом</div>
+                <div style="font-size:10px;color:var(--text-muted);">→ מתכון #12</div>
+              </div>
+              <div class="phone-dish-qty">×80</div>
+            </div>
+            <div class="phone-dish-card">
+              <div>
+                <div class="phone-dish-name">Плов</div>
+                <div style="font-size:10px;color:var(--text-muted);">→ מתכון #3</div>
+              </div>
+              <div class="phone-dish-qty">×40</div>
+            </div>
+            <div class="phone-dish-card">
+              <div>
+                <div class="phone-dish-name">Салат Оливье</div>
+                <div style="font-size:10px;color:var(--text-muted);">→ מתכון #7</div>
+              </div>
+              <div class="phone-dish-qty">×40</div>
+            </div>
+            <div class="phone-dish-card">
+              <div>
+                <div class="phone-dish-name">Шашлык</div>
+                <div style="font-size:10px;color:var(--text-muted);">→ מתכון #21</div>
+              </div>
+              <div class="phone-dish-qty">×120</div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:8px;font-size:12px;padding:8px;">🖨️ הדפס הזמנה</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone 3: Recipe -->
+    <div>
+      <div style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:8px;">מתכון מוכפל</div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="screen-header">
+            <span class="back">◀</span>
+            <span class="title">Самса с мясом</span>
+          </div>
+          <div class="screen-body">
+            <div class="phone-recipe-header">
+              <div style="font-size:10px;color:var(--text-muted);">מכפיל</div>
+              <div class="phone-recipe-multiplier">× 8.0</div>
+              <div class="phone-recipe-sub">80 מנות ÷ 10 מנות בסיס</div>
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">רכיבים (80 מנות)</div>
+            <div class="phone-ingredient-row">
+              <span>בצק עלים</span>
+              <span class="phone-ingredient-qty">4,800 גר'</span>
+            </div>
+            <div class="phone-ingredient-row">
+              <span>בשר טחון</span>
+              <span class="phone-ingredient-qty">3,200 גר'</span>
+            </div>
+            <div class="phone-ingredient-row">
+              <span>בצל</span>
+              <span class="phone-ingredient-qty">960 גר'</span>
+            </div>
+            <div class="phone-ingredient-row">
+              <span>שמן</span>
+              <span class="phone-ingredient-qty">400 מ"ל</span>
+            </div>
+            <div class="phone-ingredient-row">
+              <span>תבלינים</span>
+              <span class="phone-ingredient-qty">80 גר'</span>
+            </div>
+            <button class="btn btn-ghost" style="width:100%;margin-top:10px;font-size:11px;padding:6px;">🖨️ הדפס מתכון</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- ARCHITECTURE -->
+<section id="arch">
+  <div class="section-tag">ארכיטקטורה</div>
+  <h2>מבנה טכני</h2>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:28px;">
+    <div>
+      <h3 style="margin-bottom:20px;">שכבות המערכת</h3>
+      <div class="arch-diagram">
+        <div class="arch-layer">
+          <h4>Client (דפדפן)</h4>
+          <div class="arch-items">
+            <div class="arch-item highlight">index.html</div>
+            <div class="arch-item highlight">order.html</div>
+            <div class="arch-item highlight">recipe.html</div>
+            <div class="arch-item">app.css</div>
+            <div class="arch-item">api.js</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓ REST API (HTTPS)</div>
+        <div class="arch-layer" style="border-color:var(--blue);">
+          <h4 style="color:var(--blue);">Airtable API</h4>
+          <div class="arch-items">
+            <div class="arch-item">GET /orders</div>
+            <div class="arch-item">GET /line_items</div>
+            <div class="arch-item">GET /recipes</div>
+            <div class="arch-item">GET /bom</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓ Sync</div>
+        <div class="arch-layer" style="border-color:var(--yellow);">
+          <h4 style="color:var(--yellow);">Airtable Base</h4>
+          <div class="arch-items">
+            <div class="arch-item">הזמנות</div>
+            <div class="arch-item">מאכלים</div>
+            <div class="arch-item">מתכונים</div>
+            <div class="arch-item">כמויות</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:20px;">מבנה קבצים</h3>
+      <div class="card" style="font-family:monospace;font-size:13px;line-height:2;">
+        <div style="color:var(--primary);">kitchen-app/</div>
+        <div style="padding-right:16px;">
+          <div>├── <span style="color:var(--accent);">index.html</span> <span style="color:var(--text-muted);">← דשבורד</span></div>
+          <div>├── <span style="color:var(--accent);">order.html</span> <span style="color:var(--text-muted);">← פירוט הזמנה</span></div>
+          <div>├── <span style="color:var(--accent);">recipe.html</span> <span style="color:var(--text-muted);">← מתכון ×כמות</span></div>
+          <div>├── <span style="color:var(--blue);">config.js</span> <span style="color:var(--text-muted);">← BASE_ID, token</span></div>
+          <div>├── css/</div>
+          <div style="padding-right:16px;">└── <span style="color:var(--green);">app.css</span></div>
+          <div>└── js/</div>
+          <div style="padding-right:16px;">
+            <div>├── <span style="color:var(--green);">api.js</span></div>
+            <div>├── <span style="color:var(--green);">orders.js</span></div>
+            <div>├── <span style="color:var(--green);">recipe.js</span></div>
+            <div>└── <span style="color:var(--green);">print.js</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flow Diagram Mermaid -->
+  <h3 style="margin:40px 0 20px;">דיאגרמת זרימה</h3>
+  <div class="mermaid-wrap">
+    <div class="mermaid">
+flowchart TD
+    A[🔗 QR Code / קישור ישיר] --> B[index.html\nדשבורד הזמנות]
+    B --> C{בחירת הזמנה}
+    C --> D[order.html\nפירוט הזמנה + מאכלים]
+    D --> E{בחירת מאכל}
+    E --> F[recipe.html\nמתכון × multiplier]
+    F --> G[🖨️ הדפסה]
+
+    style A fill:#FF6B35,color:#fff
+    style B fill:#1A2535,color:#E8EDF5
+    style D fill:#1A2535,color:#E8EDF5
+    style F fill:#1A2535,color:#E8EDF5
+    style G fill:#27AE60,color:#fff
+    </div>
+  </div>
+
+  <!-- QR Section -->
+  <h3 style="margin:40px 0 16px;">QR Code — גישה מהירה למתכון</h3>
+  <div class="qr-demo">
+    <div class="qr-box">📷</div>
+    <div class="qr-info">
+      <p style="color:var(--text-muted);font-size:14px;">כל מאכל בהזמנה מקבל QR Code ייחודי בPDF.</p>
+      <p style="color:var(--text-muted);font-size:14px;margin-top:8px;">הטבח סורק ← הדפדפן נפתח עם המתכון כבר מוכפל לפי הכמות שהוזמנה.</p>
+      <div class="qr-url">kitchen-app.vercel.app/recipe.html?item_id=recABC123&qty=80</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">
+        הקישור מכיל: <code>item_id</code> (שורת הזמנה מ-Airtable) + <code>qty</code> (כמות שהוזמנה)
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- TIMELINE -->
+<section id="timeline">
+  <div class="section-tag">לוח זמנים</div>
+  <h2>תכנית עבודה</h2>
+  <p class="lead">3 שלבים · ~3 ימי עבודה משותפת</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:32px;">
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="timeline-week">שלב 1 — שעות 1–4</div>
+        <div class="timeline-task">Quick Win: Make.com Webhook</div>
+        <div class="timeline-detail">QR → HTML response עם מתכון מוכפל. עובד מיד, ללא hosting.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-week">שלב 2 — יום 1</div>
+        <div class="timeline-task">שלד האפליקציה</div>
+        <div class="timeline-detail">index.html + order.html + CSS + Airtable API connection</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-week">שלב 3 — יום 2</div>
+        <div class="timeline-task">Recipe viewer + הדפסה</div>
+        <div class="timeline-detail">recipe.html + חישוב multiplier + @media print</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-week">שלב 4 — יום 3</div>
+        <div class="timeline-task">אגרגציה + QR + Deploy</div>
+        <div class="timeline-detail">כמויות כוללות חוצות הזמנות + QR codes + GitHub Pages</div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:20px;">Features לפי שלב</h3>
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span class="badge badge-green">שלב 1</span>
+          <strong>דשבורד הזמנות</strong>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);">רשימת הזמנות היום · סטטוס · שעת הגשה · מספר אנשים</div>
+      </div>
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span class="badge badge-orange">שלב 2</span>
+          <strong>פירוט הזמנה</strong>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);">רשימת מאכלים + כמויות · לחיצה → מתכון · הדפסת הזמנה</div>
+      </div>
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span class="badge badge-blue">שלב 3</span>
+          <strong>מתכון מוכפל</strong>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);">כל רכיב × multiplier · הוראות הכנה · הדפסה ייעודית</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span class="badge" style="background:rgba(243,156,18,0.15);color:var(--yellow);">עתידי</span>
+          <strong>אגרגציה</strong>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);">סה"כ כמויות למאכל מכל ההזמנות · QR scan · offline mode</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" style="max-width:1100px;margin:0 auto;"/>
+
+<!-- DECISION -->
+<section style="padding-bottom:100px;">
+  <div class="section-tag">המלצה</div>
+  <h2>סיכום והמלצה</h2>
+  <div class="card-grid" style="margin-top:28px;">
+    <div class="card card-highlight">
+      <div class="card-icon">⭐</div>
+      <h3>Custom Web App</h3>
+      <p>הפתרון היחיד שמאפשר הכפלת מתכון אמיתית, אגרגציה חוצת הזמנות, QR ישיר, הדפסה מותאמת — ב-$0.</p>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" style="width:100%;">✅ בחרנו זה — להתחיל לבנות</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>Quick Win קודם</h3>
+      <p>לפני בניית האפליקציה — Webhook Response ל-QR ניתן לממש תוך 4 שעות ולתת ערך מיידי לצוות.</p>
+      <div style="margin-top:16px;">
+        <button class="btn btn-secondary" style="width:100%;">Quick Win תחילה</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🚀</div>
+      <h3>Deploy</h3>
+      <p>GitHub Pages חינמי, דומיין מותאם אפשרי. העלאה לאוויר תוך 5 דקות מה-repository.</p>
+      <div style="margin-top:16px;font-family:monospace;font-size:12px;color:var(--text-muted);">
+        kitchen-app.vercel.app<br/>
+        mordechay770.github.io/kitchen
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1A2535',
+      primaryTextColor: '#E8EDF5',
+      primaryBorderColor: '#FF6B35',
+      lineColor: '#FF6B35',
+      background: '#0F1923',
+      mainBkg: '#1A2535',
+      nodeBorder: '#FF6B35',
+    }
+  });
+</script>
+</body>
+</html>

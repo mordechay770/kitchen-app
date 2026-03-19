@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen App — Showcase</title>
+  <style>
+    :root {
+      --bg:      #0D1117;
+      --bg2:     #161B22;
+      --bg3:     #1C2128;
+      --border:  rgba(255,255,255,0.09);
+      --primary: #FF6B35;
+      --p2:      #FF9A6C;
+      --text:    #E6EDF3;
+      --text2:   rgba(230,237,243,0.65);
+      --text3:   rgba(230,237,243,0.35);
+      --success: #3FB950;
+      --blue:    #58A6FF;
+      --purple:  #BC8CFF;
+      --yellow:  #D29922;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    /* ── Slides container ── */
+    .slides { width: 100%; height: 100%; position: relative; overflow: hidden; }
+    .slide {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 32px; opacity: 0; pointer-events: none;
+      transition: opacity .5s ease, transform .5s ease;
+      transform: translateX(60px);
+      text-align: center;
+    }
+    .slide.active   { opacity: 1; pointer-events: all; transform: translateX(0); }
+    .slide.prev-out { opacity: 0; transform: translateX(-60px); }
+
+    /* ── Navigation ── */
+    .nav {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 14px; z-index: 100;
+      background: rgba(22,27,34,.85); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 40px; padding: 10px 20px;
+    }
+    .nav-btn {
+      background: none; border: 1px solid var(--border); color: var(--text2);
+      border-radius: 50%; width: 36px; height: 36px; cursor: pointer;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .nav-btn:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .dots { display: flex; gap: 7px; }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--text3);
+      cursor: pointer; transition: all .25s;
+    }
+    .dot.active { background: var(--primary); width: 22px; border-radius: 4px; }
+
+    /* ── Lang switcher ── */
+    .lang-bar {
+      position: fixed; top: 18px; right: 20px; display: flex; gap: 6px; z-index: 100;
+    }
+    .lang-bar button {
+      background: var(--bg2); border: 1px solid var(--border); color: var(--text2);
+      border-radius: 20px; padding: 4px 12px; font-size: .8rem; cursor: pointer;
+      transition: all .2s;
+    }
+    .lang-bar button.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+
+    /* ── Slide counter ── */
+    .slide-counter {
+      position: fixed; top: 22px; left: 22px; font-size: .75rem; color: var(--text3); z-index: 100;
+    }
+
+    /* ── Common elements ── */
+    .tag {
+      display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; padding: 4px 12px; border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .tag-orange { background: rgba(255,107,53,.15); color: var(--primary); border: 1px solid rgba(255,107,53,.3); }
+    .tag-blue   { background: rgba(88,166,255,.15);  color: var(--blue);    border: 1px solid rgba(88,166,255,.3); }
+    .tag-green  { background: rgba(63,185,80,.15);   color: var(--success); border: 1px solid rgba(63,185,80,.3); }
+    .tag-purple { background: rgba(188,140,255,.15); color: var(--purple);  border: 1px solid rgba(188,140,255,.3); }
+
+    h1.hero { font-size: clamp(2rem, 6vw, 3.8rem); font-weight: 900; line-height: 1.1; }
+    h2.slide-title { font-size: clamp(1.5rem, 4vw, 2.4rem); font-weight: 800; margin-bottom: 12px; }
+    p.lead { font-size: clamp(.95rem, 2vw, 1.2rem); color: var(--text2); line-height: 1.65; max-width: 640px; }
+
+    .gradient-text {
+      background: linear-gradient(135deg, var(--primary), var(--p2), #FFD700);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Feature grid ── */
+    .feat-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; width: 100%; max-width: 800px; margin-top: 28px; text-align: start;
+    }
+    .feat-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 18px;
+      display: flex; flex-direction: column; gap: 8px;
+      transition: border-color .2s, transform .2s;
+    }
+    .feat-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+    .feat-icon { font-size: 1.6rem; }
+    .feat-title { font-size: .95rem; font-weight: 700; }
+    .feat-desc { font-size: .8rem; color: var(--text2); line-height: 1.5; }
+
+    /* ── Screen mockup ── */
+    .mockup-wrap {
+      display: flex; gap: 24px; align-items: flex-start; max-width: 900px; width: 100%; margin-top: 24px;
+    }
+    .phone-frame {
+      width: 200px; flex-shrink: 0; background: var(--bg2); border: 1.5px solid var(--border);
+      border-radius: 28px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .phone-screen { padding: 12px; }
+    .desktop-frame {
+      flex: 1; background: var(--bg2); border: 1.5px solid var(--border);
+      border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .desktop-bar {
+      background: var(--bg3); padding: 8px 14px;
+      display: flex; gap: 6px; align-items: center; border-bottom: 1px solid var(--border);
+    }
+    .win-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ── Mini UI components ── */
+    .mini-header {
+      background: var(--bg3); padding: 8px 12px;
+      display: flex; align-items: center; gap: 8px; font-size: .7rem; font-weight: 700;
+      border-bottom: 1px solid var(--border);
+    }
+    .mini-logo { font-size: .85rem; }
+    .mini-badge {
+      display: inline-flex; align-items: center; gap: 4px; font-size: .65rem;
+      padding: 2px 8px; border-radius: 10px;
+    }
+    .mini-card {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px; margin: 6px 0; font-size: .7rem;
+    }
+    .mini-card-title { font-weight: 700; font-size: .75rem; margin-bottom: 4px; }
+    .mini-prog { height: 4px; background: var(--bg); border-radius: 2px; margin-top: 6px; }
+    .mini-prog-fill { height: 100%; border-radius: 2px; background: var(--primary); }
+    .mini-stat-row { display: flex; gap: 8px; margin: 8px 0; }
+    .mini-stat { flex: 1; background: var(--bg3); border-radius: 8px; padding: 6px; text-align: center; }
+    .mini-stat-val { font-size: .85rem; font-weight: 900; color: var(--primary); }
+    .mini-stat-lbl { font-size: .55rem; color: var(--text3); }
+    .mini-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .mini-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 5px 10px; font-size: .65rem; font-weight: 700; cursor: default; }
+    .mini-green { color: var(--success); }
+    .mini-orange { color: var(--primary); }
+
+    /* ── Flow chart ── */
+    .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 28px 0; max-width: 700px; }
+    .flow-node {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 18px; font-size: .85rem; font-weight: 600;
+      white-space: nowrap;
+    }
+    .flow-arrow { font-size: 1.2rem; color: var(--primary); margin: 0 6px; }
+
+    /* ── Role cards ── */
+    .role-grid { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-top: 24px; max-width: 700px; }
+    .role-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+      padding: 24px 28px; flex: 1; min-width: 220px; text-align: start;
+    }
+    .role-icon { font-size: 2rem; margin-bottom: 10px; }
+    .role-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 8px; }
+    .role-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+    .role-list li { font-size: .82rem; color: var(--text2); display: flex; gap: 6px; }
+    .role-list li::before { content: '✓'; color: var(--success); font-weight: 700; flex-shrink: 0; }
+
+    /* ── Lang layers ── */
+    [data-lang] { display: none; }
+    .lang-en [data-lang="en"],
+    .lang-ru [data-lang="ru"],
+    .lang-he [data-lang="he"] { display: block; }
+    .lang-he { direction: rtl; }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .mockup-wrap { flex-direction: column; align-items: center; }
+      .phone-frame { width: 100%; max-width: 300px; }
+      .desktop-frame { width: 100%; }
+      .feat-grid { grid-template-columns: 1fr 1fr; }
+      .flow { gap: 4px; }
+      .flow-node { font-size: .75rem; padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body class="lang-en">
+
+<div class="lang-bar">
+  <button onclick="setLang('en')" class="active" id="lb-en">EN</button>
+  <button onclick="setLang('ru')" id="lb-ru">RU</button>
+  <button onclick="setLang('he')" id="lb-he">HE</button>
+</div>
+<div class="slide-counter" id="slideCounter">1 / 8</div>
+
+<div class="slides" id="slides">
+
+  <!-- ════ SLIDE 1 — HERO ════ -->
+  <div class="slide active" id="s0">
+    <div class="tag tag-orange">🍳 Kitchen App</div>
+    <h1 class="hero">
+      <span data-lang="en">Smart Kitchen<br><span class="gradient-text">Production System</span></span>
+      <span data-lang="ru">Умная система<br><span class="gradient-text">управления кухней</span></span>
+      <span data-lang="he">מערכת מטבח<br><span class="gradient-text">חכמה וממוחשבת</span></span>
+    </h1>
+    <p class="lead" style="margin-top:20px;">
+      <span data-lang="en">Real-time order tracking, recipe management, and kitchen production scheduling — all in your browser.</span>
+      <span data-lang="ru">Отслеживание заказов в реальном времени, управление рецептами и производственный план кухни — всё в браузере.</span>
+      <span data-lang="he">מעקב הזמנות בזמן אמת, ניהול מתכונים ותזמון ייצור מטבח — הכל בדפדפן.</span>
+    </p>
+    <div style="display:flex;gap:12px;margin-top:32px;flex-wrap:wrap;justify-content:center;">
+      <div class="tag tag-blue">Airtable backend</div>
+      <div class="tag tag-green">3 languages</div>
+      <div class="tag tag-purple">Multi-user auth</div>
+      <div class="tag tag-orange">Mobile ready</div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 2 — DASHBOARD ════ -->
+  <div class="slide" id="s1">
+    <div class="tag tag-orange">
+      <span data-lang="en">Dashboard</span>
+      <span data-lang="ru">Дашборд</span>
+      <span data-lang="he">לוח בקרה</span>
+    </div>
+    <h2 class="slide-title">
+      <span data-lang="en">Today's Orders at a Glance</span>
+      <span data-lang="ru">Заказы сегодня — одним взглядом</span>
+      <span data-lang="he">הזמנות היום במבט אחד</span>
+    </h2>
+
+    <div class="mockup-wrap">
+      <!-- Phone -->
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="mini-header"><span class="mini-logo">🍳</span> Kitchen App
+            <span style="margin-inline-start:auto;font-size:.6rem;color:var(--text3);">HE ▾</span>
+          </div>
+          <div style="padding:8px 0 4px;font-size:.7rem;font-weight:900;">
+            <span data-lang="en">Today's Orders</span>
+            <span data-lang="ru">Заказы на сегодня</span>
+            <span data-lang="he">הזמנות היום</span>
+          </div>
+          <div class="mini-stat-row">
+            <div class="mini-stat"><div class="mini-stat-val">7</div><div class="mini-stat-lbl">Orders</div></div>
+            <div class="mini-stat"><div class="mini-stat-val">23</div><div class="mini-stat-lbl">Dishes</div></div>
+            <div class="mini-stat"><div class="mini-stat-val mini-green">14</div><div class="mini-stat-lbl">Done</div></div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title">🎂 Simmons Wedding · #142</div>
+            <div style="color:var(--text3);font-size:.65rem;">📅 20.03.26 · 12 dishes · 📍 Tel Aviv</div>
+            <div class="mini-prog"><div class="mini-prog-fill" style="width:75%"></div></div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title">🏢 Corporate Lunch · #143</div>
+            <div style="color:var(--text3);font-size:.65rem;">📅 20.03.26 · 8 dishes</div>
+            <div class="mini-prog"><div class="mini-prog-fill" style="width:30%"></div></div>
+          </div>
+          <div class="mini-card" style="border-color:rgba(63,185,80,.3);">
+            <div class="mini-card-title">🎉 Birthday Party · #144</div>
+            <div style="font-size:.65rem;color:var(--success);">✓ All done</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop -->
+      <div class="desktop-frame">
+        <div class="desktop-bar">
+          <div class="win-dot" style="background:#ff5f57"></div>
+          <div class="win-dot" style="background:#febc2e"></div>
+          <div class="win-dot" style="background:#28c840"></div>
+          <span style="font-size:.7rem;color:var(--text3);margin-inline-start:8px;">kitchen-app/index.html</span>
+        </div>
+        <div style="padding:16px;">
+          <div class="mini-header" style="border-radius:8px;margin-bottom:12px;">
+            🍳 Kitchen App
+            <span style="margin-inline-start:auto;display:flex;gap:6px;font-size:.7rem;">
+              <span style="color:var(--text3);">👤 admin</span>
+              <span style="color:var(--primary);">⚙️</span>
+            </span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:.9rem;font-weight:900;">
+              <span data-lang="en">Today's Orders</span>
+              <span data-lang="ru">Заказы на сегодня</span>
+              <span data-lang="he">הזמנות היום</span>
+            </div>
+            <div class="mini-btn">＋ New Order</div>
+          </div>
+          <div class="mini-stat-row">
+            <div class="mini-stat"><div class="mini-stat-val">7</div><div class="mini-stat-lbl">Orders</div></div>
+            <div class="mini-stat"><div class="mini-stat-val">23</div><div class="mini-stat-lbl">Dishes</div></div>
+            <div class="mini-stat"><div class="mini-stat-val mini-green">14</div><div class="mini-stat-lbl">Done</div></div>
+            <div class="mini-stat" style="flex:2;">
+              <div style="font-size:.6rem;color:var(--text3);display:flex;justify-content:space-between;"><span>Progress</span><span style="color:var(--success);">61%</span></div>
+              <div class="mini-prog" style="margin-top:4px;"><div class="mini-prog-fill" style="width:61%"></div></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:.7rem;color:var(--text2);" placeholder="Search orders…" />
+            <input style="width:120px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:.7rem;color:var(--text2);" value="2026-03-20" />
+          </div>
+          <div class="mini-card" style="margin:4px 0;">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-weight:700;">#142 · Simmons Wedding</span>
+              <span class="mini-badge" style="background:rgba(210,153,34,.2);color:#D29922;">75%</span>
+            </div>
+          </div>
+          <div class="mini-card" style="margin:4px 0;">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-weight:700;">#143 · Corporate Lunch</span>
+              <span class="mini-badge" style="background:rgba(230,237,243,.1);color:var(--text3);">In progress</span>
+            </div>
+          </div>
+          <div class="mini-card" style="margin:4px 0;border-color:rgba(63,185,80,.3);">
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-weight:700;">#144 · Birthday Party</span>
+              <span class="mini-badge" style="background:rgba(63,185,80,.15);color:var(--success);">✓ Done</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 3 — ORDER DETAIL ════ -->
+  <div class="slide" id="s2">
+    <div class="tag tag-blue">
+      <span data-lang="en">Order Detail</span>
+      <span data-lang="ru">Состав заказа</span>
+      <span data-lang="he">פירוט הזמנה</span>
+    </div>
+    <h2 class="slide-title">
+      <span data-lang="en">Full Order View — Track Every Dish</span>
+      <span data-lang="ru">Полный вид заказа — каждое блюдо под контролем</span>
+      <span data-lang="he">תצוגת הזמנה מלאה — מעקב כל מנה</span>
+    </h2>
+    <p class="lead">
+      <span data-lang="en">See delivery info, event notes, kosher requirements, weight per portion, and mark dishes as done — directly from the kitchen floor.</span>
+      <span data-lang="ru">Информация о доставке, заметки к мероприятию, требования кошерности, вес порции и отметка готовности — прямо с кухни.</span>
+      <span data-lang="he">פרטי משלוח, הערות לאירוע, דרישות כשרות, משקל למנה וסימון כהוכן — ישירות ממרצפת המטבח.</span>
+    </p>
+
+    <div class="feat-grid" style="margin-top:20px;">
+      <div class="feat-card">
+        <div class="feat-icon">📋</div>
+        <div class="feat-title"><span data-lang="en">Order Info</span><span data-lang="ru">Данные заказа</span><span data-lang="he">פרטי הזמנה</span></div>
+        <div class="feat-desc"><span data-lang="en">Date, address, guests, event type, delivery status</span><span data-lang="ru">Дата, адрес, гости, тип, доставка</span><span data-lang="he">תאריך, כתובת, אורחים, סוג, משלוח</span></div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">⚖️</div>
+        <div class="feat-title"><span data-lang="en">Weight Calc</span><span data-lang="ru">Расчёт веса</span><span data-lang="he">חישוב משקל</span></div>
+        <div class="feat-desc"><span data-lang="en">Net weight per portion × quantity = total prep weight</span><span data-lang="ru">Нетто на порцию × кол-во = итого</span><span data-lang="he">משקל נטו × כמות = סה"כ להכנה</span></div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">⚠️</div>
+        <div class="feat-title"><span data-lang="en">Kosher Notes</span><span data-lang="ru">Кошерность</span><span data-lang="he">הוראות כשרות</span></div>
+        <div class="feat-desc"><span data-lang="en">Kosher instructions per dish, visible to kitchen staff</span><span data-lang="ru">Инструкции кошерности на каждое блюдо</span><span data-lang="he">הנחיות כשרות לכל מנה, גלויות לצוות</span></div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">✅</div>
+        <div class="feat-title"><span data-lang="en">Mark Done</span><span data-lang="ru">Отметить готовым</span><span data-lang="he">סמן כהוכן</span></div>
+        <div class="feat-desc"><span data-lang="en">One tap to mark ready, progress bar updates instantly</span><span data-lang="ru">Одно касание — прогресс обновляется</span><span data-lang="he">לחיצה אחת — פס ההתקדמות מתעדכן</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 4 — RECIPE ════ -->
+  <div class="slide" id="s3">
+    <div class="tag tag-green">
+      <span data-lang="en">Recipe View</span>
+      <span data-lang="ru">Просмотр рецепта</span>
+      <span data-lang="he">מתכון</span>
+    </div>
+    <h2 class="slide-title">
+      <span data-lang="en">Exact Quantities for Every Portion</span>
+      <span data-lang="ru">Точные количества для каждой порции</span>
+      <span data-lang="he">כמויות מדויקות לכל כמות מנות</span>
+    </h2>
+    <p class="lead">
+      <span data-lang="en">Multiplier-scaled ingredient list: enter ordered portions, get exact brutto/netto per ingredient. Supports simple and complex (multi-component) recipes.</span>
+      <span data-lang="ru">Список ингредиентов с учётом множителя: введите заказанное кол-во — получите точный брутто/нетто. Поддержка простых и сложных рецептов.</span>
+      <span data-lang="he">רשימת מרכיבים מחושבת לפי מכפיל: הכנס כמות מנות — קבל ברוטו/נטו מדויק. תמיכה במתכונים פשוטים ומורכבים.</span>
+    </p>
+
+    <div style="max-width:560px;width:100%;margin-top:24px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <div style="background:var(--bg3);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:800;">🥗 Caesar Salad</span>
+        <span style="font-size:.75rem;color:var(--primary);">×4.5 <span style="color:var(--text3);font-size:.65rem;">(base: 10p, ordered: 45)</span></span>
+      </div>
+      <div style="padding:14px 18px;">
+        <div style="font-size:.72rem;color:var(--text3);display:grid;grid-template-columns:1fr 80px 80px 60px;gap:4px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+          <span>Ingredient</span><span>Brutto</span><span>Netto</span><span>Unit</span>
+        </div>
+        <div style="font-size:.82rem;display:grid;grid-template-columns:1fr 80px 80px 60px;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <span>Romaine lettuce</span>
+          <span style="color:var(--primary);font-weight:700;">450g</span>
+          <span style="color:var(--text2);">360g</span>
+          <span style="color:var(--text3);">g</span>
+        </div>
+        <div style="font-size:.82rem;display:grid;grid-template-columns:1fr 80px 80px 60px;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <span>Parmesan</span>
+          <span style="color:var(--primary);font-weight:700;">113g</span>
+          <span style="color:var(--text2);">100g</span>
+          <span style="color:var(--text3);">g</span>
+        </div>
+        <div style="font-size:.82rem;display:grid;grid-template-columns:1fr 80px 80px 60px;gap:4px;padding:8px 0;">
+          <span>Caesar dressing</span>
+          <span style="color:var(--primary);font-weight:700;">225ml</span>
+          <span style="color:var(--text2);">—</span>
+          <span style="color:var(--text3);">ml</span>
+        </div>
+        <div style="margin-top:10px;background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.2);border-radius:8px;padding:8px 12px;font-size:.75rem;display:flex;justify-content:space-between;">
+          <span style="color:var(--text2);">✓ Certified Kosher dairy</span>
+          <button style="background:var(--primary);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:.7rem;font-weight:700;">Mark Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 5 — ADD DISH ════ -->
+  <div class="slide" id="s4">
+    <div class="tag tag-purple">
+      <span data-lang="en">Add Dish</span>
+      <span data-lang="ru">Добавить блюдо</span>
+      <span data-lang="he">הוסף מנה</span>
+    </div>
+    <h2 class="slide-title">
+      <span data-lang="en">Category-Filtered Dish Search</span>
+      <span data-lang="ru">Поиск блюда с фильтром по категории</span>
+      <span data-lang="he">חיפוש מנה עם סינון קטגוריה</span>
+    </h2>
+    <p class="lead">
+      <span data-lang="en">Choose a category, search by name, set the number of portions and add a kitchen note — dishes sync instantly to Airtable.</span>
+      <span data-lang="ru">Выберите категорию, найдите блюдо, укажите количество и добавьте заметку — синхронизация с Airtable мгновенно.</span>
+      <span data-lang="he">בחר קטגוריה, חפש לפי שם, קבע מספר מנות והוסף הערה — סנכרון מיידי עם Airtable.</span>
+    </p>
+
+    <div style="max-width:420px;width:100%;margin-top:20px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-weight:800;">
+        ＋ <span data-lang="en">Add dish</span><span data-lang="ru">Добавить блюдо</span><span data-lang="he">הוסף מנה</span>
+      </div>
+      <div style="padding:12px 16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+          <span style="background:var(--primary);color:#fff;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;">🥗 Salads</span>
+          <span style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.72rem;color:var(--text2);">🍖 Mains</span>
+          <span style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.72rem;color:var(--text2);">🍰 Desserts</span>
+          <span style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.72rem;color:var(--text2);">🍲 Soups</span>
+        </div>
+        <input style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:.8rem;color:var(--text2);margin-bottom:8px;" placeholder="🔍 Search dish…" />
+        <div class="mini-card" style="background:rgba(255,107,53,.08);border-color:rgba(255,107,53,.3);">
+          <div style="font-weight:700;font-size:.8rem;">Caesar Salad</div>
+          <div style="font-size:.65rem;color:var(--text3);">Recipes · Dairy · 180g/portion</div>
+        </div>
+        <div class="mini-card">
+          <div style="font-weight:700;font-size:.8rem;">Greek Salad</div>
+          <div style="font-size:.65rem;color:var(--text3);">Recipes · Pareve · 150g/portion</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <input style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:.8rem;color:var(--text);text-align:center;" value="45" />
+          <input style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.75rem;color:var(--text2);" placeholder="Kitchen note…" />
+        </div>
+        <button class="mini-btn" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;font-size:.82rem;">
+          <span data-lang="en">＋ Add</span><span data-lang="ru">Добавить</span><span data-lang="he">הוסף</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 6 — ADMIN PANEL ════ -->
+  <div class="slide" id="s5">
+    <div class="tag tag-orange">
+      <span data-lang="en">Admin Panel</span>
+      <span data-lang="ru">Панель администратора</span>
+      <span data-lang="he">לוח ניהול</span>
+    </div>
+    <h2 class="slide-title">
+      <span data-lang="en">Access Control & Permissions</span>
+      <span data-lang="ru">Управление доступом и правами</span>
+      <span data-lang="he">בקרת גישה והרשאות</span>
+    </h2>
+    <div class="role-grid">
+      <div class="role-card" style="border-color:rgba(255,107,53,.3);">
+        <div class="role-icon">🔑</div>
+        <div class="role-title">
+          <span data-lang="en">Admin</span>
+          <span data-lang="ru">Администратор</span>
+          <span data-lang="he">מנהל</span>
+        </div>
+        <ul class="role-list">
+          <li><span data-lang="en">Create & manage orders</span><span data-lang="ru">Создавать и управлять заказами</span><span data-lang="he">יצירת וניהול הזמנות</span></li>
+          <li><span data-lang="en">View all dates</span><span data-lang="ru">Просмотр всех дат</span><span data-lang="he">צפייה בכל התאריכים</span></li>
+          <li><span data-lang="en">Manage users & passwords</span><span data-lang="ru">Управление пользователями</span><span data-lang="he">ניהול משתמשים וסיסמאות</span></li>
+          <li><span data-lang="en">Configure access rules</span><span data-lang="ru">Настройка правил доступа</span><span data-lang="he">הגדרת כללי גישה</span></li>
+          <li><span data-lang="en">Change accent color & font</span><span data-lang="ru">Изменить цвет и размер шрифта</span><span data-lang="he">שינוי צבע גופן ועיצוב</span></li>
+        </ul>
+      </div>
+      <div class="role-card" style="border-color:rgba(88,166,255,.3);">
+        <div class="role-icon">👨‍🍳</div>
+        <div class="role-title">
+          <span data-lang="en">Kitchen Staff</span>
+          <span data-lang="ru">Персонал кухни</span>
+          <span data-lang="he">צוות מטבח</span>
+        </div>
+        <ul class="role-list">
+          <li><span data-lang="en">View orders (today or all dates)</span><span data-lang="ru">Просмотр заказов (сегодня или всё)</span><span data-lang="he">צפייה בהזמנות (היום / הכל)</span></li>
+          <li><span data-lang="en">Mark dishes as done</span><span data-lang="ru">Отмечать блюда как готовые</span><span data-lang="he">סימון מנות כהוכן</span></li>
+          <li><span data-lang="en">View recipes & ingredients</span><span data-lang="ru">Просмотр рецептов</span><span data-lang="he">צפייה במתכונים ומרכיבים</span></li>
+          <li><span data-lang="en">Optionally: create orders & add dishes</span><span data-lang="ru">Опционально: создавать заказы</span><span data-lang="he">אופציונלי: יצירת הזמנות והוספת מנות</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 7 — TECH STACK ════ -->
+  <div class="slide" id="s6">
+    <div class="tag tag-blue">
+      <span data-lang="en">Technology</span>
+      <span data-lang="ru">Технологии</span>
+      <span data-lang="he">טכנולוגיה</span>
+    </div>
+    <h2 class="slide-title">
+      <span data-lang="en">Built on Proven, Open Infrastructure</span>
+      <span data-lang="ru">Построено на надёжной открытой инфраструктуре</span>
+      <span data-lang="he">בנוי על תשתית פתוחה ומוכחת</span>
+    </h2>
+
+    <div class="flow" style="margin:28px 0;">
+      <div class="flow-node">📱 Browser</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">⚡ JS / HTML</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">🌐 Airtable API</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">🗄️ Airtable DB</div>
+    </div>
+
+    <div class="feat-grid" style="max-width:700px;">
+      <div class="feat-card">
+        <div class="feat-icon">🏗️</div>
+        <div class="feat-title"><span data-lang="en">Zero Dependencies</span><span data-lang="ru">Без зависимостей</span><span data-lang="he">ללא תלויות</span></div>
+        <div class="feat-desc"><span data-lang="en">Pure HTML/CSS/JS — no build tools, no frameworks, no npm</span><span data-lang="ru">Чистый HTML/CSS/JS без фреймворков и сборки</span><span data-lang="he">HTML/CSS/JS טהור — ללא כלי build</span></div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🔄</div>
+        <div class="feat-title"><span data-lang="en">Airtable Sync</span><span data-lang="ru">Синхронизация Airtable</span><span data-lang="he">סנכרון Airtable</span></div>
+        <div class="feat-desc"><span data-lang="en">Live data via REST API — changes in Airtable appear immediately</span><span data-lang="ru">Живые данные через REST API</span><span data-lang="he">נתונים חיים דרך REST API</span></div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🌍</div>
+        <div class="feat-title"><span data-lang="en">3 Languages</span><span data-lang="ru">3 языка</span><span data-lang="he">3 שפות</span></div>
+        <div class="feat-desc"><span data-lang="en">Russian, Hebrew (RTL), English — switch without page reload</span><span data-lang="ru">Русский, иврит (RTL), английский</span><span data-lang="he">רוסית, עברית (RTL), אנגלית</span></div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">📱</div>
+        <div class="feat-title"><span data-lang="en">Mobile First</span><span data-lang="ru">Мобильный прежде всего</span><span data-lang="he">מובייל ראשון</span></div>
+        <div class="feat-desc"><span data-lang="en">Works on phones, tablets, and desktop — swipe-friendly</span><span data-lang="ru">Работает на телефонах, планшетах, ПК</span><span data-lang="he">עובד על טלפונים, טאבלטים ומחשבים</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SLIDE 8 — GET STARTED ════ -->
+  <div class="slide" id="s7">
+    <div class="tag tag-green">
+      <span data-lang="en">Get Started</span>
+      <span data-lang="ru">Начало работы</span>
+      <span data-lang="he">התחל עכשיו</span>
+    </div>
+    <h2 class="slide-title">
+      <span data-lang="en">Deploy in Minutes</span>
+      <span data-lang="ru">Запуск за несколько минут</span>
+      <span data-lang="he">פריסה בדקות</span>
+    </h2>
+    <p class="lead">
+      <span data-lang="en">No server needed. Edit <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;">config.js</code> with your Airtable API key and table IDs, then host on GitHub Pages — completely free.</span>
+      <span data-lang="ru">Сервер не нужен. Отредактируйте <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;">config.js</code> с ключом API Airtable и ID таблиц, затем разместите на GitHub Pages — бесплатно.</span>
+      <span data-lang="he">אין צורך בשרת. ערוך את <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;">config.js</code> עם מפתח ה-API ומזהי הטבלאות, ופרוס ב-GitHub Pages — בחינם לגמרי.</span>
+    </p>
+
+    <div style="max-width:560px;width:100%;margin-top:24px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <div style="background:var(--bg3);padding:10px 16px;font-size:.72rem;color:var(--text3);display:flex;gap:6px;">
+        <span style="color:var(--success);">●</span> config.js
+      </div>
+      <pre style="padding:16px;font-size:.78rem;line-height:1.7;color:var(--text2);overflow-x:auto;"><span style="color:var(--text3);">// 1. Your Airtable PAT token</span>
+<span style="color:var(--blue);">API_KEY</span>: <span style="color:var(--success);">'patXXXXXXXX.xxxxxxxx'</span>,
+
+<span style="color:var(--text3);">// 2. Your base ID</span>
+<span style="color:var(--blue);">BASE_ID</span>: <span style="color:var(--success);">'appXXXXXXXXXXXXXX'</span>,
+
+<span style="color:var(--text3);">// 3. Table IDs (copy from Airtable URL)</span>
+<span style="color:var(--blue);">TABLES</span>: {
+  ORDERS:     <span style="color:var(--success);">'tblXXXXXXXXXXXXXX'</span>,
+  LINE_ITEMS: <span style="color:var(--success);">'tblXXXXXXXXXXXXXX'</span>,
+  ...</pre>
+    </div>
+
+    <div style="display:flex;gap:16px;margin-top:28px;flex-wrap:wrap;justify-content:center;">
+      <div style="text-align:center;">
+        <div style="font-size:1.4rem;font-weight:900;color:var(--primary);">1.</div>
+        <div style="font-size:.82rem;color:var(--text2);max-width:140px;"><span data-lang="en">Edit config.js</span><span data-lang="ru">Отредактируй config.js</span><span data-lang="he">ערוך config.js</span></div>
+      </div>
+      <div style="font-size:1.2rem;color:var(--text3);align-self:center;">→</div>
+      <div style="text-align:center;">
+        <div style="font-size:1.4rem;font-weight:900;color:var(--primary);">2.</div>
+        <div style="font-size:.82rem;color:var(--text2);max-width:140px;"><span data-lang="en">Push to GitHub</span><span data-lang="ru">Загрузи на GitHub</span><span data-lang="he">העלה ל-GitHub</span></div>
+      </div>
+      <div style="font-size:1.2rem;color:var(--text3);align-self:center;">→</div>
+      <div style="text-align:center;">
+        <div style="font-size:1.4rem;font-weight:900;color:var(--primary);">3.</div>
+        <div style="font-size:.82rem;color:var(--text2);max-width:140px;"><span data-lang="en">Enable GitHub Pages</span><span data-lang="ru">Включи GitHub Pages</span><span data-lang="he">הפעל GitHub Pages</span></div>
+      </div>
+      <div style="font-size:1.2rem;color:var(--text3);align-self:center;">→</div>
+      <div style="text-align:center;">
+        <div style="font-size:1.4rem;font-weight:900;color:var(--success);">🚀</div>
+        <div style="font-size:.82rem;color:var(--success);max-width:140px;font-weight:700;"><span data-lang="en">Live!</span><span data-lang="ru">Готово!</span><span data-lang="he">פעיל!</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /slides -->
+
+<!-- Navigation -->
+<div class="nav">
+  <button class="nav-btn" onclick="go(-1)">‹</button>
+  <div class="dots" id="dotsEl"></div>
+  <button class="nav-btn" onclick="go(1)">›</button>
+</div>
+
+<script>
+const TOTAL = 8;
+let cur = 0;
+let prevCur = -1;
+
+// Build dots
+const dotsEl = document.getElementById('dotsEl');
+for (let i = 0; i < TOTAL; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.onclick = () => goTo(i);
+  dotsEl.appendChild(d);
+}
+
+function goTo(n) {
+  if (n < 0) n = TOTAL - 1;
+  if (n >= TOTAL) n = 0;
+  const slides = document.querySelectorAll('.slide');
+  if (prevCur >= 0) {
+    slides[prevCur].classList.remove('active');
+    slides[prevCur].classList.add('prev-out');
+    setTimeout(() => slides[prevCur]?.classList.remove('prev-out'), 500);
+  }
+  prevCur = cur;
+  cur = n;
+  slides[cur].classList.add('active');
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === cur));
+  document.getElementById('slideCounter').textContent = `${cur + 1} / ${TOTAL}`;
+}
+
+function go(dir) { goTo(cur + dir); }
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+});
+
+// Touch/swipe
+let tx = 0;
+document.addEventListener('touchstart', e => tx = e.touches[0].clientX, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = tx - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 40) go(dx > 0 ? 1 : -1);
+}, { passive: true });
+
+// Language
+function setLang(l) {
+  const body = document.body;
+  body.className = 'lang-' + l;
+  document.documentElement.lang = l;
+  document.documentElement.dir = l === 'he' ? 'rtl' : 'ltr';
+  document.querySelectorAll('.lang-bar button').forEach(b => b.classList.toggle('active', b.id === 'lb-' + l));
+  localStorage.setItem('kit_showcase_lang', l);
+}
+
+// Restore language
+const savedLang = localStorage.getItem('kit_showcase_lang') || 'en';
+setLang(savedLang);
+</script>
+</body>
+</html>

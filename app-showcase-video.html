@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Kitchen App — Showcase</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Inter',system-ui,sans-serif;color:#E6EDF3}
+
+/* ── Orbs ── */
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0}
+.orb1{width:700px;height:700px;top:-200px;right:-150px;background:radial-gradient(circle,rgba(255,107,53,.10),transparent 65%)}
+.orb2{width:600px;height:600px;bottom:-200px;left:-150px;background:radial-gradient(circle,rgba(88,166,255,.08),transparent 65%)}
+
+/* ── Stage ── */
+.deck{width:100vw;height:100vh;display:grid;place-items:center;position:relative;z-index:1}
+.stage{
+  width:min(1380px,calc(100vw - 40px));
+  height:min(800px,calc(100vh - 120px));
+  border-radius:24px;overflow:hidden;position:relative;
+  background:rgba(13,17,23,.9);
+  border:1px solid rgba(255,107,53,.18);
+  box-shadow:0 0 100px rgba(255,107,53,.07),0 40px 120px rgba(0,0,0,.7);
+}
+
+/* ── Slides ── */
+.slide{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px;
+  opacity:0;pointer-events:none;
+  transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1);
+  transform:translateX(60px);
+}
+.slide.active{opacity:1;pointer-events:all;transform:translateX(0)}
+.slide.out    {opacity:0;transform:translateX(-60px)}
+
+/* ── Controls bar ── */
+.controls{
+  position:absolute;bottom:0;left:0;right:0;height:52px;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(12px);
+  border-top:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;gap:14px;padding:0 20px;z-index:50;
+}
+.ctrl-btn{
+  background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;
+  font-size:1rem;width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;
+}
+.ctrl-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.progress-track{
+  flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;cursor:pointer;
+}
+.progress-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,#FF6B35,#FF9A6C);
+  transition:width .1s linear;width:0%;
+}
+.time-label{font-size:.72rem;color:rgba(255,255,255,.35);flex-shrink:0;min-width:42px}
+.dot-nav{display:flex;gap:6px;align-items:center}
+.dot{
+  width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);
+  cursor:pointer;transition:all .25s;
+}
+.dot.active{background:#FF6B35;width:18px}
+
+/* ── Scene label ── */
+.scene-label{
+  position:absolute;top:18px;left:22px;
+  font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:rgba(255,107,53,.6);z-index:10;
+}
+.slide-count{
+  position:absolute;top:18px;right:22px;
+  font-size:.68rem;color:rgba(255,255,255,.2);z-index:10;
+}
+
+/* ── Common ── */
+.tag{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  padding:5px 16px;border-radius:20px;
+}
+.tag-or{background:rgba(255,107,53,.14);color:#FF9A6C;border:1px solid rgba(255,107,53,.3)}
+.tag-bl{background:rgba(88,166,255,.14);color:#88C5FF;border:1px solid rgba(88,166,255,.3)}
+.tag-gr{background:rgba(63,185,80,.14);color:#7ECA9C;border:1px solid rgba(63,185,80,.3)}
+.tag-pu{background:rgba(188,140,255,.14);color:#D5AAFF;border:1px solid rgba(188,140,255,.3)}
+
+h1.hero{font-size:clamp(2.4rem,5vw,4.2rem);font-weight:900;line-height:1.05;letter-spacing:-1.5px}
+h2.title{font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;letter-spacing:-.5px;margin-bottom:10px}
+.sub{font-size:clamp(.9rem,1.6vw,1.15rem);color:rgba(230,237,243,.5);line-height:1.65;max-width:680px}
+.grad{background:linear-gradient(135deg,#FF6B35,#FF9A6C,#FFD700);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* ── Cards / grid ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;width:100%;max-width:900px;margin-top:24px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:960px;margin-top:24px}
+.card{
+  background:#161B22;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px 22px;
+  transition:border-color .2s;
+}
+.card:hover{border-color:rgba(255,107,53,.4)}
+.card-icon{font-size:1.5rem;margin-bottom:8px}
+.card-title{font-size:.95rem;font-weight:700;margin-bottom:4px}
+.card-desc{font-size:.78rem;color:rgba(230,237,243,.45);line-height:1.5}
+
+/* ── Mini UI components ── */
+.mini-header{
+  background:#1C2128;padding:8px 14px;
+  display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:800;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.mini-card{
+  background:#1C2128;border:1px solid rgba(255,255,255,.08);border-radius:10px;
+  padding:11px 14px;margin-bottom:7px;font-size:.8rem;
+}
+.mini-stat-row{display:flex;gap:8px;margin-bottom:10px}
+.mini-stat{
+  flex:1;background:#1C2128;border-radius:8px;padding:7px 4px;text-align:center;
+  border:1px solid rgba(255,255,255,.07);
+}
+.mini-stat-val{font-size:1rem;font-weight:900}
+.mini-stat-lbl{font-size:.58rem;color:rgba(255,255,255,.3);margin-top:2px}
+.mini-prog{height:4px;background:#0D1117;border-radius:2px;margin-top:6px}
+.mini-prog-fill{height:100%;border-radius:2px}
+.badge{font-size:.65rem;padding:2px 9px;border-radius:10px;font-weight:700}
+.badge-gr{background:rgba(63,185,80,.15);color:#3FB950;border:1px solid rgba(63,185,80,.3)}
+.badge-ye{background:rgba(210,153,34,.15);color:#D29922;border:1px solid rgba(210,153,34,.3)}
+.badge-gy{background:rgba(255,255,255,.07);color:rgba(255,255,255,.4)}
+
+/* ── Two-col layout ── */
+.twocol{display:flex;gap:0;width:100%;height:100%}
+.col-l{flex-shrink:0;padding:50px 40px;border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;justify-content:center}
+.col-r{flex:1;padding:50px 48px;display:flex;flex-direction:column;justify-content:center}
+
+/* ── Table ── */
+.ing-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.ing-table th{text-align:start;font-size:.65rem;color:rgba(255,255,255,.3);font-weight:700;letter-spacing:1px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.ing-table td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:middle}
+.ing-table tr:last-child td{border-bottom:none}
+
+/* ── Phone mockup ── */
+.phones{display:flex;gap:32px;align-items:flex-end;justify-content:center;margin-top:32px}
+.phone{
+  width:200px;background:#161B22;
+  border:2px solid rgba(255,255,255,.14);border-radius:30px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+  transform-origin:bottom center;
+}
+.phone-notch{width:60px;height:10px;background:#0D1117;border-radius:0 0 8px 8px;margin:0 auto}
+.phone-body{padding:8px 10px}
+
+/* ── Flow ── */
+.flow{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.flow-node{
+  background:#161B22;border:1px solid rgba(255,255,255,.09);border-radius:12px;
+  padding:14px 20px;font-size:.88rem;font-weight:600;text-align:center;
+}
+.flow-arrow{font-size:1.3rem;color:rgba(255,107,53,.6)}
+
+/* ── Animated entry ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@keyframes slideRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+
+.slide.active .a1{animation:fadeUp .55s .05s both}
+.slide.active .a2{animation:fadeUp .55s .18s both}
+.slide.active .a3{animation:fadeUp .55s .30s both}
+.slide.active .a4{animation:fadeUp .55s .42s both}
+.slide.active .a5{animation:fadeUp .55s .55s both}
+.slide.active .a6{animation:fadeUp .55s .68s both}
+.slide.active .asc{animation:scaleIn .55s .20s both}
+.slide.active .asl{animation:slideRight .5s .15s both}
+
+/* ── Mobile ── */
+@media(max-width:700px){
+  .grid2,.grid3{grid-template-columns:1fr;gap:10px}
+  .twocol{flex-direction:column}
+  .col-l{border-right:none;border-bottom:1px solid rgba(255,255,255,.07);padding:24px}
+  .col-r{padding:24px}
+  .phones{gap:14px}
+  .phone{width:130px}
+  h1.hero{font-size:2rem}
+  h2.title{font-size:1.5rem}
+}
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="deck">
+<div class="stage">
+
+  <div class="scene-label" id="sceneLabel">Kitchen App</div>
+  <div class="slide-count" id="slideCount">1 / 7</div>
+
+  <!-- ══════════════════════════════════════════════
+       SCENE 1 — HERO
+  ══════════════════════════════════════════════ -->
+  <div class="slide active" id="s0">
+    <div style="text-align:center">
+      <div class="a1" style="font-size:4rem;margin-bottom:16px">🍳</div>
+      <div class="a2" style="margin-bottom:20px"><span class="tag tag-or">Smart Kitchen Management</span></div>
+      <h1 class="hero a3">
+        Kitchen <span class="grad">App</span>
+      </h1>
+      <p class="sub a4" style="margin:18px auto 36px">
+        Real-time order tracking · Multiplier-scaled recipes · Multi-user access control
+      </p>
+      <div class="a5" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <span class="tag tag-or">🌍 3 languages (RU · HE · EN)</span>
+        <span class="tag tag-bl">🔄 Airtable live sync</span>
+        <span class="tag tag-gr">📱 Mobile + Desktop</span>
+        <span class="tag tag-pu">🔒 Multi-user auth</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SCENE 2 — DASHBOARD
+  ══════════════════════════════════════════════ -->
+  <div class="slide" id="s1">
+    <div class="twocol" style="height:100%;max-height:680px">
+      <!-- Left: title + stats -->
+      <div class="col-l" style="width:360px">
+        <div class="a1"><span class="tag tag-or" style="margin-bottom:16px">Dashboard</span></div>
+        <h2 class="title a2">Today's<br><span class="grad">Orders</span></h2>
+        <p class="sub a3" style="font-size:.88rem;margin-bottom:24px">Live view of all kitchen orders for the day. Stats update as staff marks dishes done.</p>
+        <div class="a4">
+          <div class="mini-stat-row">
+            <div class="mini-stat"><div class="mini-stat-val" style="color:#FF6B35">7</div><div class="mini-stat-lbl">Orders</div></div>
+            <div class="mini-stat"><div class="mini-stat-val" style="color:#58A6FF">40</div><div class="mini-stat-lbl">Dishes</div></div>
+            <div class="mini-stat"><div class="mini-stat-val" style="color:#3FB950">16</div><div class="mini-stat-lbl">Done</div></div>
+          </div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-bottom:6px;display:flex;justify-content:space-between">
+            <span>Overall Progress</span><span style="color:#3FB950;font-weight:700">40%</span>
+          </div>
+          <div style="height:6px;background:#1C2128;border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:40%;background:linear-gradient(90deg,#FF6B35,#3FB950);border-radius:3px"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Right: order cards -->
+      <div class="col-r" style="gap:10px;display:flex;flex-direction:column;justify-content:center">
+        <div style="font-size:.68rem;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,.25);text-transform:uppercase;margin-bottom:4px" class="a2">Kitchen Orders — March 20, 2026</div>
+        <div class="a3">
+          <div class="mini-card" style="border-color:rgba(210,153,34,.25)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><span style="color:#FF6B35;font-weight:800">#142</span> Свадьба Симонс · 12 блюд</div>
+              <span class="badge badge-ye">75%</span>
+            </div>
+            <div class="mini-prog" style="margin-top:8px"><div class="mini-prog-fill" style="width:75%;background:#D29922"></div></div>
+          </div>
+        </div>
+        <div class="a4">
+          <div class="mini-card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><span style="color:#FF6B35;font-weight:800">#143</span> Корпоратив · 8 блюд</div>
+              <span class="badge badge-gy">В работе</span>
+            </div>
+            <div class="mini-prog" style="margin-top:8px"><div class="mini-prog-fill" style="width:25%;background:#FF6B35"></div></div>
+          </div>
+        </div>
+        <div class="a5">
+          <div class="mini-card" style="border-color:rgba(63,185,80,.3)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><span style="color:#FF6B35;font-weight:800">#144</span> День рождения · 5 блюд</div>
+              <span class="badge badge-gr">✓ Готово</span>
+            </div>
+            <div class="mini-prog" style="margin-top:8px"><div class="mini-prog-fill" style="width:100%;background:#3FB950"></div></div>
+          </div>
+        </div>
+        <div class="a6">
+          <div class="mini-card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><span style="color:#FF6B35;font-weight:800">#145</span> Бар Мицва · 15 блюд</div>
+              <span class="badge badge-gy">Ожидание</span>
+            </div>
+            <div class="mini-prog" style="margin-top:8px"><div class="mini-prog-fill" style="width:0%;background:#FF6B35"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SCENE 3 — ORDER DETAIL
+  ══════════════════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="twocol" style="height:100%;max-height:680px">
+      <div class="col-l" style="width:340px">
+        <div class="a1"><span class="tag tag-bl" style="margin-bottom:14px">Order Detail</span></div>
+        <h2 class="title a2" style="font-size:2.2rem">Свадьба <span class="grad">Симонс</span>
+          <span style="font-size:1.1rem;color:rgba(255,255,255,.3);font-weight:400"> #142</span></h2>
+        <div class="a3" style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+          <div style="display:flex;gap:10px;font-size:.85rem;color:rgba(255,255,255,.6);padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)"><span>📅</span><span>20.03.2026 · 15:00</span></div>
+          <div style="display:flex;gap:10px;font-size:.85rem;color:rgba(255,255,255,.6);padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)"><span>📍</span><span>ул. Луганского 5</span></div>
+          <div style="display:flex;gap:10px;font-size:.85rem;color:rgba(255,255,255,.6);padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)"><span>👥</span><span>250 персон</span></div>
+          <div style="display:flex;gap:10px;font-size:.85rem;color:rgba(255,255,255,.6);padding:8px 0"><span>🚚</span><span>Доставка: Да</span></div>
+        </div>
+        <div class="a4" style="margin-top:16px;padding:10px 14px;background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:10px;font-size:.8rem;color:#D29922">
+          ⚠️ Кошерность: Парве — без молочных продуктов
+        </div>
+      </div>
+      <div class="col-r">
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,.25);text-transform:uppercase;margin-bottom:14px" class="a2">Kitchen Items</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="a3">
+            <div style="background:rgba(63,185,80,.07);border:1px solid rgba(63,185,80,.25);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px">
+              <div style="width:28px;height:28px;border-radius:50%;background:#3FB950;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85rem;flex-shrink:0">✓</div>
+              <div style="flex:1">
+                <div style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,.5)">Салат Запечённые овощи</div>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:3px">× 100 порц. · ⚖️ 180г/порц. = 18.0 кг итого</div>
+              </div>
+              <span class="badge badge-gr">✓ Готово</span>
+            </div>
+          </div>
+          <div class="a4">
+            <div style="background:#161B22;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px">
+              <div style="width:28px;height:28px;border-radius:50%;background:#3FB950;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85rem;flex-shrink:0">✓</div>
+              <div style="flex:1">
+                <div style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,.5)">Куриный суп с лапшой</div>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:3px">× 80 порц. · ⚖️ 250г/порц. = 20.0 кг итого</div>
+              </div>
+              <span class="badge badge-gr">✓ Готово</span>
+            </div>
+          </div>
+          <div class="a5">
+            <div style="background:#161B22;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px">
+              <div style="width:28px;height:28px;border-radius:50%;background:#1C2128;border:2px solid rgba(255,255,255,.2);flex-shrink:0"></div>
+              <div style="flex:1">
+                <div style="font-size:.9rem;font-weight:700">Чебуреки овощные</div>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:3px">× 50 порц. · ⚖️ 120г/порц. = 6.0 кг итого · <span style="color:#D29922">⚠️ Парве</span></div>
+              </div>
+              <button style="background:#FF6B35;border:none;border-radius:8px;color:#fff;font-size:.72rem;font-weight:700;padding:6px 14px;cursor:pointer">Отметить ✓</button>
+            </div>
+          </div>
+          <div class="a6">
+            <div style="background:#161B22;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px">
+              <div style="width:28px;height:28px;border-radius:50%;background:#1C2128;border:2px solid rgba(255,255,255,.2);flex-shrink:0"></div>
+              <div style="flex:1">
+                <div style="font-size:.9rem;font-weight:700">Рис с жареным луком</div>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:3px">× 100 порц. · ⚖️ 200г/порц. = 20.0 кг итого</div>
+              </div>
+              <button style="background:#FF6B35;border:none;border-radius:8px;color:#fff;font-size:.72rem;font-weight:700;padding:6px 14px;cursor:pointer">Отметить ✓</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SCENE 4 — RECIPE + MULTIPLIER
+  ══════════════════════════════════════════════ -->
+  <div class="slide" id="s3" style="padding:50px 60px">
+    <div style="width:100%;max-width:1000px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px">
+        <div>
+          <div class="a1"><span class="tag tag-gr" style="margin-bottom:12px">Recipe View</span></div>
+          <h2 class="title a2" style="font-size:2rem">🥗 Салат Запечённые овощи</h2>
+          <p class="a3" style="font-size:.85rem;color:rgba(255,255,255,.4);margin-top:6px">Базовый рецепт: 10 порций · Заказано: <strong style="color:#FF6B35">45 порций</strong></p>
+        </div>
+        <div class="asc" style="background:rgba(255,107,53,.12);border:1px solid rgba(255,107,53,.35);border-radius:18px;padding:18px 28px;text-align:center;flex-shrink:0">
+          <div style="font-size:.65rem;color:rgba(255,255,255,.3);font-weight:700;letter-spacing:1px;margin-bottom:6px">МНОЖИТЕЛЬ</div>
+          <div style="font-size:3.2rem;font-weight:900;line-height:1" class="grad">×4.5</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:6px">45 ÷ 10 = 4.5</div>
+        </div>
+      </div>
+
+      <div class="a4" style="background:#161B22;border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden">
+        <table class="ing-table">
+          <thead><tr style="background:#1C2128">
+            <th>Ингредиент</th><th>Брутто ×4.5</th><th>Нетто ×4.5</th><th>Ед.</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>Капуста белокочанная</td><td style="color:#FF6B35;font-weight:800">4 500 г</td><td style="color:rgba(255,255,255,.5)">3 960 г</td><td style="color:rgba(255,255,255,.3)">г</td></tr>
+            <tr><td>Морковь</td><td style="color:#FF6B35;font-weight:800">900 г</td><td style="color:rgba(255,255,255,.5)">765 г</td><td style="color:rgba(255,255,255,.3)">г</td></tr>
+            <tr><td>Масло подсолнечное</td><td style="color:#FF6B35;font-weight:800">450 мл</td><td style="color:rgba(255,255,255,.5)">450 мл</td><td style="color:rgba(255,255,255,.3)">мл</td></tr>
+            <tr><td>Соль</td><td style="color:#FF6B35;font-weight:800">90 г</td><td style="color:rgba(255,255,255,.5)">90 г</td><td style="color:rgba(255,255,255,.3)">г</td></tr>
+            <tr><td>Перец чёрный молотый</td><td style="color:#FF6B35;font-weight:800">18 г</td><td style="color:rgba(255,255,255,.5)">18 г</td><td style="color:rgba(255,255,255,.3)">г</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="a5" style="display:flex;gap:14px;margin-top:14px">
+        <div style="padding:10px 18px;border-radius:10px;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);font-size:.8rem;color:#3FB950">✓ Кошерность: Парве</div>
+        <div style="padding:10px 18px;border-radius:10px;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.25);font-size:.8rem;color:#58A6FF">⚙️ Оборудование: Духовка · Миксер</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SCENE 5 — ADMIN PANEL
+  ══════════════════════════════════════════════ -->
+  <div class="slide" id="s4">
+    <div class="twocol" style="height:100%;max-height:680px">
+      <div class="col-l" style="width:370px">
+        <div class="a1"><span class="tag tag-or" style="margin-bottom:14px">Admin Panel</span></div>
+        <h2 class="title a2">Access Control<br><span class="grad">&amp; Permissions</span></h2>
+
+        <div class="a3" style="margin-top:20px;display:flex;flex-direction:column;gap:0">
+          <!-- Toggle rows -->
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+            <span style="font-size:1.1rem">🔒</span>
+            <div style="flex:1"><div style="font-size:.88rem;font-weight:700">Require login</div><div style="font-size:.7rem;color:rgba(255,255,255,.3)">Staff must sign in</div></div>
+            <div style="width:44px;height:24px;border-radius:12px;background:#3FB950;border:1px solid #3FB950;position:relative;flex-shrink:0"><div style="position:absolute;top:3px;left:23px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+            <span style="font-size:1.1rem">➕</span>
+            <div style="flex:1"><div style="font-size:.88rem;font-weight:700">Allow new orders</div><div style="font-size:.7rem;color:rgba(255,255,255,.3)">By permission level</div></div>
+            <div style="width:44px;height:24px;border-radius:12px;background:#3FB950;border:1px solid #3FB950;position:relative;flex-shrink:0"><div style="position:absolute;top:3px;left:23px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 0">
+            <span style="font-size:1.1rem">🍽️</span>
+            <div style="flex:1"><div style="font-size:.88rem;font-weight:700">Allow add dishes</div><div style="font-size:.7rem;color:rgba(255,255,255,.3)">Managers only</div></div>
+            <div style="width:44px;height:24px;border-radius:12px;background:#1C2128;border:1px solid rgba(255,255,255,.2);position:relative;flex-shrink:0"><div style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.4)"></div></div>
+          </div>
+        </div>
+
+        <!-- Accent colors -->
+        <div class="a4" style="margin-top:18px">
+          <div style="font-size:.65rem;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.25);margin-bottom:10px">ACCENT COLOR</div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="width:28px;height:28px;border-radius:50%;background:#FF6B35;border:2px solid #fff;box-shadow:0 0 0 1px rgba(255,255,255,.3)"></div>
+            <div style="width:28px;height:28px;border-radius:50%;background:#58A6FF;border:2px solid transparent"></div>
+            <div style="width:28px;height:28px;border-radius:50%;background:#3FB950;border:2px solid transparent"></div>
+            <div style="width:28px;height:28px;border-radius:50%;background:#BC8CFF;border:2px solid transparent"></div>
+            <span style="font-size:.82rem;color:rgba(255,255,255,.35);margin-inline-start:8px">Aa Medium</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-r">
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,.25);text-transform:uppercase;margin-bottom:18px" class="a2">Kitchen Staff</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="a3">
+            <div class="card" style="display:flex;align-items:center;gap:14px">
+              <div style="width:42px;height:42px;border-radius:50%;background:rgba(88,166,255,.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">👤</div>
+              <div style="flex:1"><div style="font-weight:800">Ирина</div><div style="font-size:.75rem;color:rgba(255,255,255,.35)">View only</div></div>
+              <span class="badge badge-ye">Today only</span>
+            </div>
+          </div>
+          <div class="a4">
+            <div class="card" style="display:flex;align-items:center;gap:14px">
+              <div style="width:42px;height:42px;border-radius:50%;background:rgba(63,185,80,.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">👤</div>
+              <div style="flex:1"><div style="font-weight:800">Давид</div><div style="font-size:.75rem;color:rgba(255,255,255,.35)">Can create orders</div></div>
+              <span class="badge badge-bl" style="background:rgba(88,166,255,.15);color:#58A6FF;border:1px solid rgba(88,166,255,.3)">All dates</span>
+              <span class="badge badge-gr">✓ Orders</span>
+            </div>
+          </div>
+          <div class="a5">
+            <div class="card" style="display:flex;align-items:center;gap:14px">
+              <div style="width:42px;height:42px;border-radius:50%;background:rgba(210,153,34,.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">👤</div>
+              <div style="flex:1"><div style="font-weight:800">Нилуфар</div><div style="font-size:.75rem;color:rgba(255,255,255,.35)">View only</div></div>
+              <span class="badge badge-ye">Today only</span>
+            </div>
+          </div>
+          <div class="a6" style="margin-top:4px">
+            <div style="padding:14px 18px;background:rgba(255,107,53,.05);border:1px dashed rgba(255,107,53,.3);border-radius:12px;display:flex;align-items:center;gap:12px">
+              <span style="font-size:1.4rem;color:#FF6B35">＋</span>
+              <span style="font-size:.85rem;color:rgba(255,255,255,.3)">Add new user with custom permissions…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SCENE 6 — MOBILE
+  ══════════════════════════════════════════════ -->
+  <div class="slide" id="s5" style="flex-direction:column">
+    <div style="text-align:center" class="a1">
+      <span class="tag tag-pu">Mobile Experience</span>
+    </div>
+    <h2 class="title a2" style="text-align:center;margin-top:12px">
+      Works on <span class="grad">any device</span>
+    </h2>
+    <p class="sub a3" style="text-align:center;margin-top:8px;font-size:.9rem">Phone · Tablet · Desktop — same URL, fully responsive, 3 languages</p>
+
+    <div class="phones a4">
+      <!-- Phone 1: Dashboard RU -->
+      <div class="phone" style="transform:rotate(-5deg) translateY(-10px)">
+        <div class="phone-notch"></div>
+        <div class="phone-body">
+          <div class="mini-header" style="border-radius:6px;margin-bottom:8px;font-size:.65rem">🍳 Kitchen App <span style="margin-inline-start:auto;color:#FF6B35;font-size:.6rem">RU</span></div>
+          <div style="font-size:.75rem;font-weight:900;margin-bottom:6px">Заказы на сегодня</div>
+          <div class="mini-stat-row" style="gap:5px">
+            <div class="mini-stat" style="padding:5px 2px"><div class="mini-stat-val" style="color:#FF6B35;font-size:.85rem">7</div><div class="mini-stat-lbl">Заказов</div></div>
+            <div class="mini-stat" style="padding:5px 2px"><div class="mini-stat-val" style="color:#58A6FF;font-size:.85rem">40</div><div class="mini-stat-lbl">Блюд</div></div>
+            <div class="mini-stat" style="padding:5px 2px"><div class="mini-stat-val" style="color:#3FB950;font-size:.85rem">16</div><div class="mini-stat-lbl">Готово</div></div>
+          </div>
+          <div class="mini-card" style="border-left:2px solid #D29922;padding:7px 9px;font-size:.68rem;font-weight:700">#142 Свадьба<div class="mini-prog"><div class="mini-prog-fill" style="width:75%;background:#D29922"></div></div></div>
+          <div class="mini-card" style="border-left:2px solid #FF6B35;padding:7px 9px;font-size:.68rem;font-weight:700">#143 Корпоратив<div class="mini-prog"><div class="mini-prog-fill" style="width:25%;background:#FF6B35"></div></div></div>
+          <div class="mini-card" style="border-left:2px solid #3FB950;padding:7px 9px;font-size:.68rem;font-weight:700">#144 День рождения<div class="mini-prog"><div class="mini-prog-fill" style="width:100%;background:#3FB950"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Phone 2: Recipe HE -->
+      <div class="phone" style="transform:translateY(-20px);box-shadow:0 40px 100px rgba(0,0,0,.8),0 0 40px rgba(255,107,53,.12)" dir="rtl">
+        <div class="phone-notch"></div>
+        <div class="phone-body">
+          <div class="mini-header" style="border-radius:6px;margin-bottom:8px;font-size:.65rem">🍳 Kitchen App <span style="margin-inline-start:auto;color:#58A6FF;font-size:.6rem">HE</span></div>
+          <div style="font-size:.75rem;font-weight:900;margin-bottom:3px">סלט ירקות קלויים</div>
+          <div style="font-size:.62rem;color:#FF6B35;margin-bottom:8px">מכפיל: ×4.5 · 45 מנות</div>
+          <div style="background:#1C2128;border-radius:6px;overflow:hidden;font-size:.67rem">
+            <div style="display:flex;padding:5px 7px;border-bottom:1px solid rgba(255,255,255,.07);color:rgba(255,255,255,.3);font-size:.58rem">
+              <span style="flex:1">מרכיב</span><span>ברוטו</span>
+            </div>
+            <div style="display:flex;padding:5px 7px;border-bottom:1px solid rgba(255,255,255,.06)"><span style="flex:1">כרוב לבן</span><span style="color:#FF6B35;font-weight:800">4.5ק"ג</span></div>
+            <div style="display:flex;padding:5px 7px;border-bottom:1px solid rgba(255,255,255,.06)"><span style="flex:1">גזר</span><span style="color:#FF6B35;font-weight:800">900ג</span></div>
+            <div style="display:flex;padding:5px 7px"><span style="flex:1">שמן</span><span style="color:#FF6B35;font-weight:800">450מל</span></div>
+          </div>
+          <div style="margin-top:7px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.25);border-radius:6px;padding:5px 8px;font-size:.62rem;color:#3FB950">✓ כשרות: פרווה</div>
+          <button style="width:100%;margin-top:7px;background:#FF6B35;border:none;border-radius:8px;padding:7px;color:#fff;font-size:.7rem;font-weight:900">סמן כהוכן ✓</button>
+        </div>
+      </div>
+
+      <!-- Phone 3: Add dish EN -->
+      <div class="phone" style="transform:rotate(5deg) translateY(-10px)">
+        <div class="phone-notch"></div>
+        <div class="phone-body">
+          <div class="mini-header" style="border-radius:6px;margin-bottom:8px;font-size:.65rem">🍳 Kitchen App <span style="margin-inline-start:auto;color:#3FB950;font-size:.6rem">EN</span></div>
+          <div style="font-size:.75rem;font-weight:900;margin-bottom:7px">＋ Add dish</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+            <span style="background:#FF6B35;color:#fff;border-radius:10px;padding:2px 7px;font-size:.6rem;font-weight:700">🥗 Salads</span>
+            <span style="background:#1C2128;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:2px 7px;font-size:.6rem;color:rgba(255,255,255,.4)">🍖 Mains</span>
+            <span style="background:#1C2128;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:2px 7px;font-size:.6rem;color:rgba(255,255,255,.4)">🍰</span>
+          </div>
+          <div class="mini-card" style="padding:6px 9px;font-size:.67rem">Caesar Salad<div style="font-size:.58rem;color:rgba(255,255,255,.35);margin-top:2px">⚖️ 180г · 💰 350 ₸</div></div>
+          <div class="mini-card" style="padding:6px 9px;font-size:.67rem;background:rgba(255,107,53,.12);border-color:rgba(255,107,53,.35)">Roasted Veg Salad<div style="font-size:.58rem;color:rgba(255,255,255,.35);margin-top:2px">⚖️ 180г · 💰 320 ₸</div></div>
+          <div class="mini-card" style="padding:6px 9px;font-size:.67rem">Greek Salad<div style="font-size:.58rem;color:rgba(255,255,255,.35);margin-top:2px">⚖️ 150г · 💰 280 ₸</div></div>
+          <div style="display:flex;gap:5px;margin-top:7px">
+            <input readonly value="45" style="width:45px;background:#1C2128;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:4px;color:#fff;font-size:.75rem;text-align:center"/>
+            <button style="flex:1;background:#FF6B35;border:none;border-radius:6px;color:#fff;font-size:.67rem;font-weight:900;padding:4px">＋ Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SCENE 7 — DEPLOY / CTA
+  ══════════════════════════════════════════════ -->
+  <div class="slide" id="s6" style="flex-direction:column">
+    <div style="text-align:center">
+      <div class="a1"><span class="tag tag-gr" style="margin-bottom:14px">Deploy in Minutes</span></div>
+      <h2 class="title a2" style="font-size:clamp(1.8rem,3.5vw,2.8rem)">
+        Zero-server hosting on <span class="grad">GitHub Pages</span>
+      </h2>
+      <p class="sub a3" style="margin:12px auto 32px;font-size:.9rem">No backend · No build tools · No cost · Just static files</p>
+    </div>
+
+    <div class="flow a4">
+      <div class="flow-node" style="text-align:center">
+        <div style="font-size:1.6rem;margin-bottom:6px">⚙️</div>
+        <div style="font-size:.68rem;font-weight:800;color:#FF6B35;letter-spacing:1px">STEP 1</div>
+        <div style="font-size:.85rem;font-weight:700;margin:4px 0">Edit config.js</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.35)">Airtable API key + IDs</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="text-align:center">
+        <div style="font-size:1.6rem;margin-bottom:6px">📤</div>
+        <div style="font-size:.68rem;font-weight:800;color:#FF6B35;letter-spacing:1px">STEP 2</div>
+        <div style="font-size:.85rem;font-weight:700;margin:4px 0">Push to GitHub</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.35)">git push — all static files</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="text-align:center">
+        <div style="font-size:1.6rem;margin-bottom:6px">🌐</div>
+        <div style="font-size:.68rem;font-weight:800;color:#FF6B35;letter-spacing:1px">STEP 3</div>
+        <div style="font-size:.85rem;font-weight:700;margin:4px 0">Enable Pages</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.35)">Settings → Pages → main</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="text-align:center;border-color:rgba(63,185,80,.35);background:rgba(63,185,80,.07)">
+        <div style="font-size:1.6rem;margin-bottom:6px">🚀</div>
+        <div style="font-size:.68rem;font-weight:800;color:#3FB950;letter-spacing:1px">LIVE!</div>
+        <div style="font-size:.85rem;font-weight:700;margin:4px 0;color:#3FB950">App is live</div>
+        <div style="font-size:.7rem;color:rgba(63,185,80,.5)">Share with your team</div>
+      </div>
+    </div>
+
+    <div class="a5" style="margin-top:28px;text-align:center">
+      <div style="font-size:2.5rem">🍳</div>
+      <div style="font-size:1.2rem;font-weight:900;margin-top:8px" class="grad">Kitchen App</div>
+      <div style="font-size:.82rem;color:rgba(255,255,255,.3);margin-top:4px">Smart production management for professional kitchens</div>
+    </div>
+  </div>
+
+  <!-- ── Controls ── -->
+  <div class="controls">
+    <button class="ctrl-btn" onclick="go(-1)" title="Previous">‹</button>
+    <button class="ctrl-btn" id="playBtn" onclick="togglePlay()" title="Play/Pause">⏸</button>
+    <button class="ctrl-btn" onclick="go(1)" title="Next">›</button>
+    <div class="progress-track" id="track" onclick="seekClick(event)">
+      <div class="progress-fill" id="fill"></div>
+    </div>
+    <div class="time-label" id="timeLbl">0:00</div>
+    <div class="dot-nav" id="dots"></div>
+  </div>
+
+</div><!-- stage -->
+</div><!-- deck -->
+
+<script>
+const SCENES = [
+  { id:'s0', label:'Hero',          dur:6  },
+  { id:'s1', label:'Dashboard',     dur:7  },
+  { id:'s2', label:'Order Detail',  dur:7  },
+  { id:'s3', label:'Recipe',        dur:7  },
+  { id:'s4', label:'Admin Panel',   dur:7  },
+  { id:'s5', label:'Mobile',        dur:7  },
+  { id:'s6', label:'Deploy',        dur:7  },
+];
+const TOTAL_DUR = SCENES.reduce((s,sc)=>s+sc.dur,0);  // 48s
+
+let cur      = 0;
+let playing  = true;
+let elapsed  = 0;       // seconds within current scene
+let totalElapsed = 0;   // seconds total
+let raf;
+
+// Build dots
+const dotsEl = document.getElementById('dots');
+SCENES.forEach((_,i)=>{
+  const d = document.createElement('div');
+  d.className = 'dot' + (i===0?' active':'');
+  d.onclick   = ()=> goTo(i,true);
+  dotsEl.appendChild(d);
+});
+
+function goTo(n, reset=true){
+  if(n<0) n=SCENES.length-1;
+  if(n>=SCENES.length) n=0;
+  const prev = cur;
+  cur = n;
+  if(reset){
+    elapsed = 0;
+    // recalc total elapsed
+    totalElapsed = SCENES.slice(0,n).reduce((s,sc)=>s+sc.dur,0);
+  }
+  // Animate slides
+  document.querySelectorAll('.slide').forEach((el,i)=>{
+    el.classList.remove('active','out');
+    if(i===n) el.classList.add('active');
+    else if(i===prev) el.classList.add('out');
+  });
+  document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===n));
+  document.getElementById('sceneLabel').textContent = SCENES[n].label;
+  document.getElementById('slideCount').textContent = `${n+1} / ${SCENES.length}`;
+  updateProgressUI();
+}
+
+function go(dir){ goTo(cur+dir,true); }
+
+function updateProgressUI(){
+  const pct = (totalElapsed/TOTAL_DUR)*100;
+  document.getElementById('fill').style.width = pct+'%';
+  const t = Math.floor(totalElapsed);
+  document.getElementById('timeLbl').textContent = `${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;
+}
+
+// Auto-advance timer using requestAnimationFrame
+let lastTs = null;
+function tick(ts){
+  if(!playing){ raf=requestAnimationFrame(tick); return; }
+  if(lastTs===null){ lastTs=ts; }
+  const dt = Math.min((ts-lastTs)/1000, 0.1);
+  lastTs = ts;
+  elapsed      += dt;
+  totalElapsed += dt;
+  updateProgressUI();
+  if(elapsed >= SCENES[cur].dur){
+    if(cur < SCENES.length-1){
+      goTo(cur+1, false);
+      elapsed -= SCENES[cur-1]?.dur || 0; // keep overflow
+    } else {
+      playing=false;
+      document.getElementById('playBtn').textContent='▶';
+    }
+  }
+  raf = requestAnimationFrame(tick);
+}
+raf = requestAnimationFrame(tick);
+
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('playBtn').textContent = playing?'⏸':'▶';
+  if(playing) lastTs=null;
+  // if at end, restart
+  if(playing && cur===SCENES.length-1 && elapsed>=SCENES[cur].dur){
+    goTo(0,true); totalElapsed=0;
+  }
+}
+
+function seekClick(e){
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct  = (e.clientX-rect.left)/rect.width;
+  totalElapsed = pct*TOTAL_DUR;
+  // find which scene
+  let acc=0;
+  for(let i=0;i<SCENES.length;i++){
+    if(totalElapsed<=acc+SCENES[i].dur||i===SCENES.length-1){
+      elapsed = totalElapsed-acc;
+      goTo(i,false);
+      break;
+    }
+    acc+=SCENES[i].dur;
+  }
+  lastTs=null;
+}
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') go(1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp')   go(-1);
+  if(e.key===' '){ e.preventDefault(); togglePlay(); }
+});
+
+// Touch swipe
+let tx=0;
+document.addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx=tx-e.changedTouches[0].clientX;
+  if(Math.abs(dx)>40) go(dx>0?1:-1);
+},{passive:true});
+</script>
+</body>
+</html>
