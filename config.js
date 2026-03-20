@@ -1,7 +1,6 @@
 // Kitchen App — Airtable Configuration
+// TOKEN and BASE_ID are stored securely in Netlify Environment Variables
 const CONFIG = {
-  TOKEN:   'patqlGQEj9dQuQuId.a56cf5eb0b9a75ba726e88cc078152dd767d127ed66247620ef92760da65a5c0',
-  BASE_ID: 'appM61hkcOruhdBuv',
 
   TABLES: {
     ORDERS:     'tblMnlLwYCD27ou80',
