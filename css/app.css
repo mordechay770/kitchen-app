@@ -715,6 +715,8 @@ body {
 .dish-search-list {
   max-height: 280px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
+  overscroll-behavior: contain;      /* prevent scroll bleeding to modal */
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg3);
@@ -723,6 +725,7 @@ body {
 .dish-search-item {
   padding: 10px 14px;
   cursor: pointer;
+  touch-action: manipulation; /* remove 300ms tap delay on iOS */
   border-bottom: 1px solid var(--border);
   transition: background 0.1s;
   font-size: 0.9rem;
@@ -773,4 +776,21 @@ body {
   .recipe-hero { flex-direction: column; align-items: flex-start; }
   .app-header-inner { padding: 0 4px; }
   .app-logo span { display: none; }
+
+  /* Add-dish modal as bottom sheet on mobile */
+  #addDishModal.modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  #addDishModal .modal-box {
+    border-radius: 20px 20px 0 0;
+    max-height: 92vh;
+    padding: 20px 16px 32px;
+  }
+  .dish-search-list {
+    max-height: 40vh;
+  }
+  .cat-btn {
+    touch-action: manipulation;
+  }
 }
