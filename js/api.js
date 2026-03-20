@@ -1,6 +1,6 @@
-// Airtable API wrapper — read + write
+// Airtable API wrapper — routes through Netlify Function
 const API = (() => {
-  const BASE = 'https://api.airtable.com/v0';
+  const PROXY = '/.netlify/functions/airtable';
 
   // ── API call counter ──
   let _callCount = 0;
@@ -17,15 +17,21 @@ const API = (() => {
   }
   function resetPageCounter() { _pageCallCount = 0; _updateCounter(); }
 
-  function headers(write = false) {
-    const h = { Authorization: `Bearer ${CONFIG.TOKEN}` };
-    if (write) h['Content-Type'] = 'application/json';
-    return h;
+  function _url(table, recordId, params) {
+    const u = new URL(PROXY, location.origin);
+    u.searchParams.set('table', table);
+    if (recordId) u.searchParams.set('recordId', recordId);
+    if (params) Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) u.searchParams.set(k, v);
+    });
+    return u.toString();
   }
 
   async function request(url, opts = {}) {
-    _tick(`${opts.method || 'GET'} ${String(url).split('?')[0].split('/').slice(-2).join('/')}`);
-    const res = await fetch(url, { headers: headers(!!opts.body), ...opts });
+    _tick(`${opts.method || 'GET'} ${String(url).split('?')[0].split('/').pop()}`);
+    const h = {};
+    if (opts.body) h['Content-Type'] = 'application/json';
+    const res = await fetch(url, { headers: h, ...opts });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(`Airtable ${res.status}: ${err.error?.message || res.statusText}`);
@@ -39,12 +45,9 @@ const API = (() => {
     const records = [];
     let offset = null;
     do {
-      const url = new URL(`${BASE}/${CONFIG.BASE_ID}/${table}`);
-      Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) url.searchParams.set(k, v);
-      });
-      if (offset) url.searchParams.set('offset', offset);
-      const data = await request(url.toString());
+      const p = { ...params };
+      if (offset) p.offset = offset;
+      const data = await request(_url(table, null, p));
       records.push(...(data.records || []));
       offset = data.offset;
     } while (offset);
@@ -52,7 +55,7 @@ const API = (() => {
   }
 
   async function getOne(table, id) {
-    return request(`${BASE}/${CONFIG.BASE_ID}/${table}/${id}`);
+    return request(_url(table, id, null));
   }
 
   async function getByIds(table, ids) {
@@ -66,14 +69,14 @@ const API = (() => {
   // ── Write ──
 
   async function create(table, fields) {
-    return request(`${BASE}/${CONFIG.BASE_ID}/${table}`, {
+    return request(_url(table, null, null), {
       method: 'POST',
       body: JSON.stringify({ fields }),
     });
   }
 
   async function update(table, id, fields) {
-    return request(`${BASE}/${CONFIG.BASE_ID}/${table}/${id}`, {
+    return request(_url(table, id, null), {
       method: 'PATCH',
       body: JSON.stringify({ fields }),
     });
