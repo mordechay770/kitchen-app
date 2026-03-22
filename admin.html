@@ -160,6 +160,21 @@
             </select>
           </div>
         </div>
+        <div style="margin-top:12px;">
+          <label class="form-label">Visible order statuses</label>
+          <div style="font-size:.72rem;color:var(--text3);margin-bottom:6px;">No selection = user sees all statuses</div>
+          <div id="newUserStatusChecks" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+          <div>
+            <div class="toggle-label" style="font-size:.85rem;">Can change order status</div>
+            <div class="toggle-desc">Allow this user to update the order status in Airtable</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="newUserChangeStatus">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
         <div class="err-msg" id="newUserErr"></div>
         <button class="btn btn-primary" style="margin-top:14px;" onclick="addNewUser()">＋ Add user</button>
       </div>
@@ -217,6 +232,7 @@
   </div>
 </main>
 
+<script src="config.js"></script>
 <script src="js/settings.js"></script>
 <script>
 SETTINGS.applyAppearance();
@@ -242,6 +258,7 @@ function showSettings() {
   document.getElementById('selFontSize').value            = cfg.uiFontSize || 'medium';
   document.querySelectorAll('.accent-swatch').forEach(b =>
     b.classList.toggle('active', b.dataset.accent === (cfg.uiColorAccent || 'orange')));
+  populateNewUserStatusChecks();
   renderUsers();
 }
 
@@ -269,8 +286,21 @@ function saveGlobal() {
 }
 
 // ── User management ──
+function populateNewUserStatusChecks() {
+  const statuses = (typeof CONFIG !== 'undefined') ? CONFIG.ORDER_STATUSES : [];
+  const el = document.getElementById('newUserStatusChecks');
+  if (!el) return;
+  el.innerHTML = statuses.map(s => `
+    <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;
+      background:var(--bg3);padding:5px 10px;border-radius:8px;border:1px solid var(--border);">
+      <input type="checkbox" value="${esc(s)}" class="new-user-status-cb">
+      ${esc(s)}
+    </label>`).join('');
+}
+
 function renderUsers() {
   const users = SETTINGS.getUsers();
+  const statuses = (typeof CONFIG !== 'undefined') ? CONFIG.ORDER_STATUSES : [];
   const el = document.getElementById('usersContainer');
   if (!users.length) {
     el.innerHTML = `<div style="font-size:.85rem;color:var(--text3);padding:8px 0;">No users yet. Add one below.</div>`;
@@ -282,10 +312,14 @@ function renderUsers() {
         <th>Username</th>
         <th>Create orders</th>
         <th>Dates</th>
+        <th>Statuses</th>
         <th></th>
       </tr></thead>
       <tbody>
-        ${users.map(u => `
+        ${users.map(u => {
+          const allowed = u.allowedOrderStatuses || [];
+          const statusLabel = allowed.length ? `${allowed.length}/${statuses.length}` : 'All';
+          return `
         <tr id="urow_${u.id}">
           <td><strong>${esc(u.username)}</strong></td>
           <td>${u.allowCreateOrder ? '✓ Yes' : '— No'}</td>
@@ -294,20 +328,63 @@ function renderUsers() {
               ? '<span class="badge-role badge-all">All dates</span>'
               : '<span class="badge-role badge-today">Today only</span>'}
           </td>
+          <td>
+            <span id="statusLabel_${u.id}" style="font-size:.78rem;">${statusLabel}</span>
+            ${u.allowChangeOrderStatus ? '<span class="badge-role badge-all" style="font-size:.65rem;margin-inline-start:4px;">✏</span>' : ''}
+          </td>
           <td style="text-align:end;">
             <button class="btn btn-ghost btn-sm" onclick="toggleUserOrders('${u.id}', ${!u.allowCreateOrder})"
               title="${u.allowCreateOrder ? 'Remove order creation' : 'Allow order creation'}">
               ${u.allowCreateOrder ? '🔒' : '🔓'}
             </button>
             <button class="btn btn-ghost btn-sm" onclick="toggleUserDates('${u.id}', '${u.viewDates === 'all' ? 'today' : 'all'}')"
-              title="Toggle date access">
-              📅
+              title="Toggle date access">📅
             </button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleStatusPanel('${u.id}')" title="Edit status permissions">⚙</button>
             <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="removeUser('${u.id}')">✕</button>
           </td>
-        </tr>`).join('')}
+        </tr>
+        <tr id="upanel_${u.id}" style="display:none;">
+          <td colspan="5" style="padding:12px 10px;background:var(--bg3);border-bottom:1px solid var(--border);">
+            <div style="font-size:.78rem;font-weight:700;margin-bottom:8px;color:var(--text2);">Visible order statuses</div>
+            <div style="font-size:.71rem;color:var(--text3);margin-bottom:8px;">No selection = user sees all statuses</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+              ${statuses.map(s => `
+                <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;
+                  background:var(--bg2);padding:5px 10px;border-radius:8px;border:1px solid var(--border);">
+                  <input type="checkbox" value="${esc(s)}" ${allowed.includes(s) ? 'checked' : ''}
+                    onchange="updateUserAllowedStatus('${u.id}', '${esc(s)}', this.checked)">
+                  ${esc(s)}
+                </label>`).join('')}
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;">
+              <input type="checkbox" ${u.allowChangeOrderStatus ? 'checked' : ''}
+                onchange="SETTINGS.updateUser('${u.id}', {allowChangeOrderStatus: this.checked}); renderUsers();">
+              Can change order status
+            </label>
+          </td>
+        </tr>`;
+        }).join('')}
       </tbody>
     </table>`;
+}
+
+function toggleStatusPanel(id) {
+  const panel = document.getElementById('upanel_' + id);
+  if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+function updateUserAllowedStatus(userId, status, checked) {
+  const user = SETTINGS.getUsers().find(u => u.id === userId);
+  if (!user) return;
+  let allowed = [...(user.allowedOrderStatuses || [])];
+  if (checked && !allowed.includes(status)) allowed.push(status);
+  if (!checked) allowed = allowed.filter(s => s !== status);
+  SETTINGS.updateUser(userId, { allowedOrderStatuses: allowed });
+  // Update summary label without re-rendering (panel stays open)
+  const statuses = (typeof CONFIG !== 'undefined') ? CONFIG.ORDER_STATUSES : [];
+  const labelEl = document.getElementById('statusLabel_' + userId);
+  if (labelEl) labelEl.textContent = allowed.length ? `${allowed.length}/${statuses.length}` : 'All';
 }
 
 function addNewUser() {
@@ -323,9 +400,14 @@ function addNewUser() {
     errEl.textContent = 'Username already exists'; errEl.style.display = ''; return;
   }
   errEl.style.display = 'none';
-  SETTINGS.addUser({ username, passB64: btoa(pass), allowCreateOrder: canOrder, viewDates: dates });
+  const allowedStatuses = [...document.querySelectorAll('.new-user-status-cb:checked')].map(cb => cb.value);
+  const canChangeStatus = document.getElementById('newUserChangeStatus').checked;
+  SETTINGS.addUser({ username, passB64: btoa(pass), allowCreateOrder: canOrder, viewDates: dates,
+    allowedOrderStatuses: allowedStatuses, allowChangeOrderStatus: canChangeStatus });
   document.getElementById('newUsername').value = '';
   document.getElementById('newUserPass').value = '';
+  document.getElementById('newUserChangeStatus').checked = false;
+  document.querySelectorAll('.new-user-status-cb').forEach(cb => cb.checked = false);
   renderUsers();
   showToast('✓ User added');
 }
