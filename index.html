@@ -188,7 +188,11 @@ function updateHeaderDate() {
 
 function populateStatusFilter() {
   const sel = document.getElementById('statusInput');
-  CONFIG.ORDER_STATUSES.forEach(s => {
+  const allowed = SETTINGS.getAllowedStatuses();  // [] = all
+  const statuses = allowed.length
+    ? CONFIG.ORDER_STATUSES.filter(s => allowed.includes(s))
+    : CONFIG.ORDER_STATUSES;
+  statuses.forEach(s => {
     const opt = document.createElement('option');
     opt.value = s; opt.textContent = s;
     sel.appendChild(opt);
@@ -222,13 +226,15 @@ function onDateChange() {
 
 // ── Filter ──
 function filteredOrders() {
-  const text   = document.getElementById('searchInput')?.value.toLowerCase() || '';
-  const status = document.getElementById('statusInput')?.value || '';
+  const text    = document.getElementById('searchInput')?.value.toLowerCase() || '';
+  const status  = document.getElementById('statusInput')?.value || '';
+  const allowed = SETTINGS.getAllowedStatuses();  // [] = no restriction
   return allOrders.filter(o => {
     const name  = (firstVal(o, CONFIG.FIELDS.ORDER_NAME) || field(o, 'Name') || '').toLowerCase();
     const ostat = firstVal(o, CONFIG.FIELDS.ORDER_STATUS) || '';
-    return (!text   || name.includes(text))
-        && (!status || ostat === status);
+    return (!text    || name.includes(text))
+        && (!status  || ostat === status)
+        && (!allowed.length || allowed.includes(ostat));
   });
 }
 
