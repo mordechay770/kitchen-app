@@ -45,8 +45,10 @@ const SETTINGS = (() => {
   function logoutAdmin() { localStorage.removeItem(ADMIN_SES); }
 
   // ── User management ──
-  // User schema: { id, username, passB64, allowCreateOrder, viewDates }
+  // User schema: { id, username, passB64, allowCreateOrder, viewDates, allowedOrderStatuses, allowChangeOrderStatus }
   // viewDates: 'today' | 'all'
+  // allowedOrderStatuses: [] = see all, or ['status1','status2'] = restricted to those
+  // allowChangeOrderStatus: boolean
   function getUsers() { return _load().users || []; }
 
   function addUser(u) {
@@ -67,7 +69,9 @@ const SETTINGS = (() => {
     // Admin user can also log in to the kitchen pages
     if (username === cfg.adminUser && btoa(pass) === cfg.adminPassB64) {
       const ses = { userId: '__admin__', username: cfg.adminUser, isAdmin: true,
-                    allowCreateOrder: true, viewDates: 'all', loginTime: Date.now() };
+                    allowCreateOrder: true, viewDates: 'all',
+                    allowedOrderStatuses: [], allowChangeOrderStatus: true,
+                    loginTime: Date.now() };
       localStorage.setItem(USER_SES, JSON.stringify(ses));
       return true;
     }
@@ -75,6 +79,8 @@ const SETTINGS = (() => {
     if (user) {
       const ses = { userId: user.id, username: user.username, isAdmin: false,
                     allowCreateOrder: !!user.allowCreateOrder, viewDates: user.viewDates || 'today',
+                    allowedOrderStatuses: user.allowedOrderStatuses || [],
+                    allowChangeOrderStatus: !!user.allowChangeOrderStatus,
                     loginTime: Date.now() };
       localStorage.setItem(USER_SES, JSON.stringify(ses));
       return true;
@@ -109,6 +115,19 @@ const SETTINGS = (() => {
     if (u) return u.isAdmin || u.viewDates === 'all';
     return true;   // no-login mode → no restriction
   }
+  // Returns array of allowed order statuses. Empty array = see all.
+  function getAllowedStatuses() {
+    const u = getCurrentUser();
+    if (!u) return [];           // no-login mode: see all
+    if (u.isAdmin) return [];    // admin sees all
+    return u.allowedOrderStatuses || [];
+  }
+  // Returns true if the current user can update order status in Airtable.
+  function canChangeOrderStatus() {
+    const u = getCurrentUser();
+    if (!u) return false;
+    return u.isAdmin || !!u.allowChangeOrderStatus;
+  }
 
   // Redirect to login.html if requireLogin is on and no valid session.
   // Call this synchronously in <head> (not in DOMContentLoaded) to prevent flash.
@@ -142,6 +161,7 @@ const SETTINGS = (() => {
     isAdmin, loginAdmin, logoutAdmin,
     getUsers, addUser, updateUser, deleteUser,
     loginUser, getCurrentUser, logoutUser,
-    canCreateOrder, canAddDish, canViewAllDates, checkLoginRequired, applyAppearance,
+    canCreateOrder, canAddDish, canViewAllDates, getAllowedStatuses, canChangeOrderStatus,
+    checkLoginRequired, applyAppearance,
   };
 })();
