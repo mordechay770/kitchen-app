@@ -55,6 +55,7 @@ const CONFIG = {
     DISH_PRICE:     'מחיר',                                // price per portion (update if field name differs)
     DISH_CATEGORY:   'קטגוריה (from מתכון)',               // lookup from Recipe → category filter
     DISH_KOSHER_NOTE:'הוראות כשרות (from מתכון)',         // lookup from Recipe → shown on order page
+    DISH_STATUS:     'סטטוס',                              // select field → filter in add-dish modal
 
     // ── Recipes ──
     RECIPE_BOM:          'כמויות - משויך למתכונים עם מחירים',
@@ -89,6 +90,10 @@ const CONFIG = {
 
   ORDER_STATUSES: [
     'В обработке',
+    'Ожидает подтверждения менеджера',
+    'Ожидает подтверждения клиента',
+    'Подтверждён',
+    'Не подтверждён',
     'Готов',
     'Завершен успешно',
     'Отменён',
