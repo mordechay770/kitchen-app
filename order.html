@@ -80,7 +80,8 @@
         data-i18n-ph="searchDish" placeholder="Поиск блюда..."
         oninput="filterDishes()" />
     </div>
-    <div id="categoryRow" style="display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 10px;"></div>
+    <div id="categoryRow" style="display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 8px;"></div>
+    <div id="statusRow" style="display:none;flex-wrap:wrap;gap:6px;margin:-4px 0 10px;"></div>
     <div class="dish-search-list" id="dishList">
       <div class="loader" style="padding:20px;"><div class="spinner"></div></div>
     </div>
@@ -117,6 +118,7 @@ let _lineItems = [];
 let _allDishes = [];      // for add-dish picker
 let _selectedDishId = null;
 let _selectedCategory = null;
+let _selectedStatus = null;
 let _dishMap = {};        // dish.id → dish record
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -177,7 +179,8 @@ function renderPage(order, lineItems, dishMap) {
   const doneCount  = PROGRESS.countDone(lineItems.map(li => li.id));
   const pct        = lineItems.length ? Math.round((doneCount / lineItems.length) * 100) : 0;
   const allDone    = lineItems.length > 0 && doneCount === lineItems.length;
-  const canAddDish = SETTINGS.canAddDish();
+  const canAddDish     = SETTINGS.canAddDish();
+  const canChgStatus   = SETTINGS.canChangeOrderStatus();
 
   document.title = `${name} — Kitchen App`;
 
@@ -224,9 +227,19 @@ function renderPage(order, lineItems, dishMap) {
         <div class="info-cell-label">👥 ${t('people')}</div>
         <div class="info-cell-value">${escHtml(String(people))}</div>
       </div>` : ''}
-      ${status ? `<div class="info-cell">
+      ${(status || canChgStatus) ? `<div class="info-cell">
         <div class="info-cell-label">${t('orders')}</div>
-        <div class="info-cell-value">${escHtml(status)}</div>
+        <div class="info-cell-value">
+          ${canChgStatus
+            ? `<select id="orderStatusSelect" onchange="changeOrderStatus(this.value)"
+                style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
+                       padding:3px 8px;color:var(--text1);font-size:.85rem;cursor:pointer;">
+                ${CONFIG.ORDER_STATUSES.map(s =>
+                  `<option value="${escHtml(s)}"${s === status ? ' selected' : ''}>${escHtml(s)}</option>`
+                ).join('')}
+              </select>`
+            : escHtml(status)}
+        </div>
       </div>` : ''}
     </div>
 
@@ -282,7 +295,8 @@ function renderLineItem(li, dishMap) {
   // Build recipe URL via Dish (to get ratio + recipe type)
   const dishId = linkedId(li, CONFIG.FIELDS.LINE_ITEM_DISH);
   const dish   = dishId ? (dishMap || {})[dishId] : null;
-  const base   = `item_id=${encodeURIComponent(li.id)}&order_id=${encodeURIComponent(ORDER_ID)}&dish_name=${encodeURIComponent(dishName)}&qty=${encodeURIComponent(qty)}`;
+  const dishStatus = dish ? (field(dish, CONFIG.FIELDS.DISH_STATUS) || '') : '';
+  const base   = `item_id=${encodeURIComponent(li.id)}&order_id=${encodeURIComponent(ORDER_ID)}&dish_name=${encodeURIComponent(dishName)}&qty=${encodeURIComponent(qty)}&dish_status=${encodeURIComponent(dishStatus)}`;
 
   let recipeUrl = null;
   if (dish) {
@@ -396,6 +410,7 @@ async function openAddDish() {
   document.getElementById('dishSearchInput').value = '';
   _selectedDishId   = null;
   _selectedCategory = null;
+  _selectedStatus   = null;
   I18N.apply();
 
   // Fetch dishes if not loaded (1 extra API call)
@@ -410,6 +425,7 @@ async function openAddDish() {
     }
   }
   renderCategoryRow();
+  renderStatusRow();
   filterDishes();
 }
 
@@ -434,6 +450,62 @@ function selectCategory(cat, el) {
   filterDishes();
 }
 
+function renderStatusRow() {
+  const statuses = [...new Set(
+    _allDishes.map(d => {
+      const v = field(d, CONFIG.FIELDS.DISH_STATUS);
+      return v ? String(v).trim() : null;
+    }).filter(Boolean)
+  )].sort();
+
+  const row = document.getElementById('statusRow');
+  if (!statuses.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  row.innerHTML = `<button class="cat-btn active" onclick="selectStatus('',this)">הכל</button>` +
+    statuses.map(s => {
+      const style = statusInlineStyle(s);
+      return `<button class="cat-btn" data-st="${escHtml(s)}" onclick="selectStatus(this.dataset.st,this)" style="${style}">${escHtml(s)}</button>`;
+    }).join('');
+}
+
+function selectStatus(status, el) {
+  _selectedStatus = status || null;
+  document.querySelectorAll('#statusRow .cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  filterDishes();
+}
+
+// Returns inline border+color style for status button (non-active state)
+function statusInlineStyle(s) {
+  const c = statusColor(s);
+  const map = {
+    green:  'rgba(63,185,80,0.6)',
+    yellow: 'rgba(210,153,34,0.6)',
+    red:    'rgba(248,81,73,0.6)',
+    blue:   'rgba(88,166,255,0.6)',
+  };
+  return c !== 'gray' ? `border-color:${map[c]};` : '';
+}
+
+// Returns a CSS class-color key based on status text
+function statusColor(s) {
+  if (!s) return 'gray';
+  const low = s.toLowerCase();
+  if (/פעיל|active|approved|מאושר/.test(low)) return 'green';
+  if (/בפיתוח|develop|test|טסט|בדיקה|review|ניסוי/.test(low)) return 'yellow';
+  if (/לא|inactive|ארכי|בוטל|cancel/.test(low)) return 'red';
+  if (/חדש|new|draft|טיוטה/.test(low)) return 'blue';
+  return 'gray';
+}
+
+// Returns HTML badge for status
+function statusBadgeHtml(s) {
+  if (!s) return '';
+  const clsMap = { green:'badge-green', yellow:'badge-yellow', red:'badge-red', blue:'badge-blue', gray:'badge-gray' };
+  const cls = clsMap[statusColor(s)] || 'badge-gray';
+  return `<span class="badge ${cls}" style="font-size:.62rem;margin-inline-start:6px;">${escHtml(s)}</span>`;
+}
+
 function closeAddDish() {
   document.getElementById('addDishModal').style.display = 'none';
 }
@@ -447,6 +519,10 @@ function filterDishes() {
     if (_selectedCategory) {
       const cat = firstVal(d, CONFIG.FIELDS.DISH_CATEGORY);
       if (String(cat || '').trim() !== _selectedCategory) return false;
+    }
+    if (_selectedStatus) {
+      const st = String(field(d, CONFIG.FIELDS.DISH_STATUS) || '').trim();
+      if (st !== _selectedStatus) return false;
     }
     return true;
   }).slice(0, 60);
@@ -477,9 +553,11 @@ function filterDishes() {
       ? `<div style="display:flex;gap:12px;margin-top:5px;font-size:.72rem;color:var(--text3);">${meta.join('')}</div>`
       : '';
 
+    const dishStatus  = field(d, CONFIG.FIELDS.DISH_STATUS) || '';
+
     return `<div class="dish-search-item ${_selectedDishId === d.id ? 'selected' : ''}"
       onclick="selectDish('${d.id}', this)">
-      <div style="display:flex;align-items:center;flex-wrap:wrap;">${escHtml(name)}${complexBadge}</div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">${escHtml(name)}${complexBadge}${statusBadgeHtml(dishStatus)}</div>
       ${metaHtml}
     </div>`;
   }).join('');
@@ -535,6 +613,30 @@ function showError(msg) {
   document.getElementById('pageContent').innerHTML = `
     <div class="error-state"><p>⚠️ ${t('errorLoad')}: ${escHtml(msg)}</p>
     <button class="btn btn-ghost" onclick="loadOrder()">${t('retry')}</button></div>`;
+}
+
+// ── Change order status ──
+async function changeOrderStatus(newStatus) {
+  if (!_cachedOrder) return;
+  const sel = document.getElementById('orderStatusSelect');
+  if (sel) sel.disabled = true;
+  try {
+    await API.update(CONFIG.TABLES.ORDERS, _cachedOrder.id, {
+      [CONFIG.FIELDS.ORDER_STATUS]: newStatus,
+    });
+    // Update local cache so re-renders show the new value
+    if (_cachedOrder.fields) _cachedOrder.fields[CONFIG.FIELDS.ORDER_STATUS] = newStatus;
+    showToast('✓ Status updated');
+  } catch (e) {
+    showToast('⚠️ ' + e.message, 'error');
+    // Restore previous value in select
+    if (sel) {
+      const prev = firstVal(_cachedOrder, CONFIG.FIELDS.ORDER_STATUS) || '';
+      sel.value = prev;
+    }
+  } finally {
+    if (sel) sel.disabled = false;
+  }
 }
 
 function showToast(msg, type='') {
