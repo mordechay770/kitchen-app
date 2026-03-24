@@ -83,6 +83,10 @@ const API = (() => {
     });
   }
 
+  async function remove(table, id) {
+    return request(_url(table, id, null), { method: 'DELETE' });
+  }
+
   // ── Date-aware order fetching ──
 
   async function getOrdersByDate(isoDate) {
@@ -121,7 +125,7 @@ const API = (() => {
     }
   }
 
-  return { getAll, getOne, getByIds, create, update, getOrdersByDate, syncDoneStatus, resetPageCounter };
+  return { getAll, getOne, getByIds, create, update, remove, getOrdersByDate, syncDoneStatus, resetPageCounter };
 })();
 
 // ── Progress tracking — localStorage + Airtable sync ──

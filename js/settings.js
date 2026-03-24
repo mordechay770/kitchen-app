@@ -74,6 +74,7 @@ const SETTINGS = (() => {
                   allowCreateOrder: true, viewDates: 'all',
                   allowedOrderStatuses: [], allowChangeOrderStatus: true,
                   allowedCategories: [], allowViewProduction: true,
+                  allowEditNotes: true, allowEditOrder: true,
                   loginTime: Date.now() };
     localStorage.setItem(USER_SES, JSON.stringify(ses));
     localStorage.setItem(ADMIN_SES, String(Date.now()));  // keep isAdmin() working
@@ -87,6 +88,7 @@ const SETTINGS = (() => {
                     allowCreateOrder: true, viewDates: 'all',
                     allowedOrderStatuses: [], allowChangeOrderStatus: true,
                     allowedCategories: [], allowViewProduction: true,
+                    allowEditNotes: true, allowEditOrder: true,
                     loginTime: Date.now() };
       localStorage.setItem(USER_SES, JSON.stringify(ses));
       return true;
@@ -99,6 +101,8 @@ const SETTINGS = (() => {
                     allowChangeOrderStatus: !!user.allowChangeOrderStatus,
                     allowedCategories: user.allowedCategories || [],
                     allowViewProduction: !!user.allowViewProduction,
+                    allowEditNotes: !!user.allowEditNotes,
+                    allowEditOrder: !!user.allowEditOrder,
                     loginTime: Date.now() };
       localStorage.setItem(USER_SES, JSON.stringify(ses));
       return true;
@@ -159,6 +163,18 @@ const SETTINGS = (() => {
     if (u.isAdmin) return [];  // admin sees all
     return u.allowedCategories || [];
   }
+  // Returns true if the current user can edit kitchen notes on line items.
+  function canEditNotes() {
+    const u = getCurrentUser();
+    if (!u) return isAdmin();
+    return u.isAdmin || !!u.allowEditNotes;
+  }
+  // Returns true if the current user can change qty or remove dishes from an order.
+  function canEditOrder() {
+    const u = getCurrentUser();
+    if (!u) return isAdmin();
+    return u.isAdmin || !!u.allowEditOrder;
+  }
 
   // Redirect to login.html if requireLogin is on and no valid session.
   // Call this synchronously in <head> (not in DOMContentLoaded) to prevent flash.
@@ -192,7 +208,7 @@ const SETTINGS = (() => {
     isAdmin, loginAdmin, logoutAdmin, loginAdminDirect,
     getUsers, addUser, updateUser, deleteUser,
     loginUser, getCurrentUser, logoutUser,
-    canCreateOrder, canAddDish, canViewAllDates, getAllowedStatuses, canChangeOrderStatus, getAllowedCategories, canViewProduction,
+    canCreateOrder, canAddDish, canViewAllDates, getAllowedStatuses, canChangeOrderStatus, getAllowedCategories, canViewProduction, canEditNotes, canEditOrder,
     checkLoginRequired, applyAppearance,
   };
 })();

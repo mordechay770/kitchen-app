@@ -194,6 +194,8 @@ function renderPage(order, lineItems, dishMap) {
   const allDone    = displayItems.length > 0 && doneCount === displayItems.length;
   const canAddDish     = SETTINGS.canAddDish();
   const canChgStatus   = SETTINGS.canChangeOrderStatus();
+  const canEditNotes   = SETTINGS.canEditNotes();
+  const canEditOrder   = SETTINGS.canEditOrder();
 
   document.title = `${name} — Kitchen App`;
 
@@ -281,7 +283,7 @@ function renderPage(order, lineItems, dishMap) {
     <div class="dish-list-card">
       ${!displayItems.length
         ? `<div class="empty-state" style="padding:30px;"><p>${t('noOrders')}</p></div>`
-        : displayItems.map(li => renderLineItem(li, dishMap)).join('')}
+        : displayItems.map(li => renderLineItem(li, dishMap, canEditNotes, canEditOrder)).join('')}
     </div>
 
     ${canAddDish ? `
@@ -294,7 +296,7 @@ function renderPage(order, lineItems, dishMap) {
   I18N.apply();
 }
 
-function renderLineItem(li, dishMap) {
+function renderLineItem(li, dishMap, canEditNotes, canEditOrder) {
   // Dish name: שם מאכל פורמולה is a lookup array
   const nameLookup = field(li, CONFIG.FIELDS.LINE_ITEM_NAME);
   const dishName   = (Array.isArray(nameLookup) ? nameLookup[0] : nameLookup) || field(li, 'Name') || '—';
@@ -355,15 +357,25 @@ function renderLineItem(li, dishMap) {
         ⚖️ ${weightPer}g × ${qty} = <strong style="color:var(--text2);">${weightTotal}g</strong>
       </div>` : ''}
       ${kosherNote ? `<div style="font-size:.75rem;color:var(--warning);margin-top:3px;">⚠️ ${escHtml(kosherNote)}</div>` : ''}
-      ${noteKit    ? `<div style="font-size:.78rem;color:var(--text3);margin-top:3px;">🍳 ${escHtml(noteKit)}</div>` : ''}
+      <div id="note_${li.id}" style="font-size:.78rem;margin-top:3px;">
+        ${noteKit
+          ? `<span style="color:var(--text3);">🍳 ${escHtml(noteKit)}</span>${canEditNotes ? ` <button class="icon-btn" style="font-size:.72rem;padding:1px 5px;" onclick="editNote('${li.id}')">✏️</button>` : ''}`
+          : canEditNotes ? `<button class="icon-btn" style="font-size:.72rem;padding:1px 5px;color:var(--text3);" onclick="editNote('${li.id}')">＋ 🍳</button>` : ''}
+      </div>
       ${noteClient ? `<div style="font-size:.78rem;color:var(--text3);margin-top:2px;">💬 ${escHtml(noteClient)}</div>` : ''}
     </div>
 
-    <div class="dish-qty">×${qty}</div>
+    ${canEditOrder ? `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
+      <button class="icon-btn" onclick="changeQty('${li.id}', 1)" style="font-size:1rem;line-height:1;">＋</button>
+      <span class="dish-qty" id="qty_${li.id}">×${qty}</span>
+      <button class="icon-btn" onclick="changeQty('${li.id}', -1)" style="font-size:1rem;line-height:1;">−</button>
+    </div>` : `<div class="dish-qty">×${qty}</div>`}
 
     <div class="action-row no-print">
       ${recipeUrl ? `<a href="${escHtml(recipeUrl)}" class="icon-btn" title="${t('recipe')}">📖</a>` : ''}
       ${qrUrl     ? `<button class="icon-btn" onclick="showQR('${escHtml(qrUrl)}','${escHtml(dishName)}')" title="${t('qrCode')}">⬜</button>` : ''}
+      ${canEditOrder ? `<button class="icon-btn" onclick="removeDish('${li.id}')" style="color:var(--danger);" title="Remove">🗑</button>` : ''}
     </div>
   </div>`;
 }
@@ -649,6 +661,86 @@ async function changeOrderStatus(newStatus) {
     }
   } finally {
     if (sel) sel.disabled = false;
+  }
+}
+
+// ── Edit kitchen note (inline) ──
+function editNote(liId) {
+  const noteEl = document.getElementById('note_' + liId);
+  if (!noteEl) return;
+  const li = _cachedLineItems.find(l => l.id === liId);
+  const current = li ? (field(li, CONFIG.FIELDS.LINE_ITEM_NOTES_KITCHEN) || '') : '';
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;align-items:center;gap:4px;margin-top:2px;';
+  const input = document.createElement('input');
+  input.type = 'text'; input.className = 'form-input';
+  input.value = current;
+  input.style.cssText = 'font-size:.82rem;padding:4px 8px;flex:1;';
+  const save = document.createElement('button');
+  save.className = 'btn btn-primary btn-sm'; save.textContent = '✓';
+  save.style.cssText = 'padding:3px 8px;';
+  const cancel = document.createElement('button');
+  cancel.className = 'btn btn-ghost btn-sm'; cancel.textContent = '✕';
+  cancel.style.cssText = 'padding:3px 8px;';
+  wrap.append(input, save, cancel);
+  noteEl.innerHTML = ''; noteEl.appendChild(wrap);
+  input.focus();
+
+  function restore(note) {
+    noteEl.innerHTML = note
+      ? `<span style="color:var(--text3);">🍳 ${escHtml(note)}</span> <button class="icon-btn" style="font-size:.72rem;padding:1px 5px;" onclick="editNote('${liId}')">✏️</button>`
+      : `<button class="icon-btn" style="font-size:.72rem;padding:1px 5px;color:var(--text3);" onclick="editNote('${liId}')">＋ 🍳</button>`;
+  }
+
+  save.onclick = async () => {
+    const newNote = input.value.trim();
+    save.disabled = true;
+    try {
+      await API.update(CONFIG.TABLES.LINE_ITEMS, liId, { [CONFIG.FIELDS.LINE_ITEM_NOTES_KITCHEN]: newNote });
+      if (li && li.fields) li.fields[CONFIG.FIELDS.LINE_ITEM_NOTES_KITCHEN] = newNote;
+      restore(newNote);
+      showToast('✓ Note saved', 'success');
+    } catch(e) {
+      showToast('⚠️ ' + e.message, 'error');
+      save.disabled = false;
+    }
+  };
+  cancel.onclick = () => restore(current);
+}
+
+// ── Change quantity ──
+async function changeQty(liId, delta) {
+  const li = _cachedLineItems.find(l => l.id === liId);
+  if (!li) return;
+  const current = parseFloat(field(li, CONFIG.FIELDS.LINE_ITEM_QTY) || 0) || 1;
+  const newQty = Math.max(1, current + delta);
+  if (newQty === current) return;
+  const qtyEl = document.getElementById('qty_' + liId);
+  if (qtyEl) qtyEl.textContent = `×${newQty}`;
+  try {
+    await API.update(CONFIG.TABLES.LINE_ITEMS, liId, { [CONFIG.FIELDS.LINE_ITEM_QTY]: newQty });
+    if (li.fields) li.fields[CONFIG.FIELDS.LINE_ITEM_QTY] = newQty;
+    showToast('✓ Qty updated', 'success');
+  } catch(e) {
+    if (qtyEl) qtyEl.textContent = `×${current}`;
+    showToast('⚠️ ' + e.message, 'error');
+  }
+}
+
+// ── Remove dish from order ──
+async function removeDish(liId) {
+  if (!confirm('Remove this dish from the order?')) return;
+  try {
+    await API.remove(CONFIG.TABLES.LINE_ITEMS, liId);
+    _cachedLineItems = _cachedLineItems.filter(l => l.id !== liId);
+    PROGRESS.remove && PROGRESS.remove(liId);
+    const row = document.getElementById('row_' + liId);
+    if (row) row.remove();
+    updateProgressBar();
+    showToast('✓ Dish removed', 'success');
+  } catch(e) {
+    showToast('⚠️ ' + e.message, 'error');
   }
 }
 

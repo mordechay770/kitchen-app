@@ -193,6 +193,26 @@
             <span class="toggle-track"></span>
           </label>
         </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+          <div>
+            <div class="toggle-label" style="font-size:.85rem;">Edit kitchen notes</div>
+            <div class="toggle-desc">Allow editing kitchen notes on line items</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="newUserEditNotes">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+          <div>
+            <div class="toggle-label" style="font-size:.85rem;">Edit order (qty / remove dishes)</div>
+            <div class="toggle-desc">Allow changing quantities and removing dishes from orders</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="newUserEditOrder">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
         <div class="err-msg" id="newUserErr"></div>
         <button class="btn btn-primary" style="margin-top:14px;" onclick="addNewUser()">＋ Add user</button>
       </div>
@@ -455,10 +475,20 @@ function renderUsers() {
                 onchange="SETTINGS.updateUser('${u.id}', {allowChangeOrderStatus: this.checked}); renderUsers();">
               Can change order status
             </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;margin-bottom:6px;">
               <input type="checkbox" ${u.allowViewProduction ? 'checked' : ''}
                 onchange="SETTINGS.updateUser('${u.id}', {allowViewProduction: this.checked}); renderUsers();">
               View production summary
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;margin-bottom:6px;">
+              <input type="checkbox" ${u.allowEditNotes ? 'checked' : ''}
+                onchange="SETTINGS.updateUser('${u.id}', {allowEditNotes: this.checked}); renderUsers();">
+              Edit kitchen notes
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;">
+              <input type="checkbox" ${u.allowEditOrder ? 'checked' : ''}
+                onchange="SETTINGS.updateUser('${u.id}', {allowEditOrder: this.checked}); renderUsers();">
+              Edit order (qty / remove dishes)
             </label>
             <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
               <div style="font-size:.78rem;font-weight:700;margin-bottom:4px;color:var(--text2);">Visible dish categories</div>
@@ -540,13 +570,18 @@ function addNewUser() {
   const allowedCategories = [...document.querySelectorAll('.new-user-cat-cb:checked')].map(cb => cb.value);
   const canChangeStatus   = document.getElementById('newUserChangeStatus').checked;
   const canViewProd       = document.getElementById('newUserViewProduction').checked;
+  const canEditNotes      = document.getElementById('newUserEditNotes').checked;
+  const canEditOrder      = document.getElementById('newUserEditOrder').checked;
   SETTINGS.addUser({ username, passB64: btoa(pass), allowCreateOrder: canOrder, viewDates: dates,
     allowedOrderStatuses: allowedStatuses, allowChangeOrderStatus: canChangeStatus,
-    allowedCategories: allowedCategories, allowViewProduction: canViewProd });
+    allowedCategories: allowedCategories, allowViewProduction: canViewProd,
+    allowEditNotes: canEditNotes, allowEditOrder: canEditOrder });
   document.getElementById('newUsername').value = '';
   document.getElementById('newUserPass').value = '';
   document.getElementById('newUserChangeStatus').checked = false;
   document.getElementById('newUserViewProduction').checked = false;
+  document.getElementById('newUserEditNotes').checked = false;
+  document.getElementById('newUserEditOrder').checked = false;
   document.querySelectorAll('.new-user-status-cb').forEach(cb => cb.checked = false);
   document.querySelectorAll('.new-user-cat-cb').forEach(cb => cb.checked = false);
   renderUsers();
