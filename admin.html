@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen App — Admin</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <style>
+    .admin-wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 60px; }
+    .admin-section {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px 24px; margin-bottom: 16px;
+    }
+    .admin-section h2 { font-size: .95rem; font-weight: 800; margin: 0 0 16px; color: var(--text2); letter-spacing:.5px; }
+
+    /* Toggle */
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--border); }
+    .toggle-row:last-child { border-bottom:none; }
+    .toggle-label { font-size:.9rem; color:var(--text2); }
+    .toggle-desc  { font-size:.73rem; color:var(--text3); margin-top:2px; }
+    .toggle-switch { position:relative; width:44px; height:24px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-track { position:absolute; inset:0; border-radius:12px; background:var(--bg3); border:1px solid var(--border2); cursor:pointer; transition:background .2s; }
+    .toggle-track::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:var(--text3); transition:transform .2s,background .2s; }
+    .toggle-switch input:checked+.toggle-track { background:var(--success); border-color:var(--success); }
+    .toggle-switch input:checked+.toggle-track::after { transform:translateX(20px); background:#fff; }
+
+    /* Users table */
+    .users-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+    .users-table th { text-align:start; font-size:.72rem; color:var(--text3); text-transform:uppercase; padding:6px 8px; border-bottom:1px solid var(--border); }
+    .users-table td { padding:9px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .users-table tr:last-child td { border-bottom:none; }
+    .badge-role { font-size:.68rem; padding:2px 8px; border-radius:10px; }
+    .badge-all  { background:rgba(74,158,255,.2); color:#4a9eff; }
+    .badge-today{ background:rgba(255,167,0,.2);  color:#FFA700; }
+
+    .err-msg { color:var(--danger); font-size:.82rem; margin-top:8px; display:none; }
+    .admin-status { display:flex; align-items:center; gap:8px; font-size:.8rem; padding:8px 12px; background:var(--bg3); border-radius:var(--radius-sm); margin-bottom:16px; }
+    .status-dot { width:8px; height:8px; border-radius:50%; background:var(--success); }
+
+    /* Accent swatches */
+    .accent-swatch {
+      width:28px; height:28px; border-radius:50%; border:2px solid transparent;
+      cursor:pointer; transition:border-color .15s, transform .15s; flex-shrink:0;
+    }
+    .accent-swatch:hover  { transform:scale(1.15); }
+    .accent-swatch.active { border-color:#fff; box-shadow:0 0 0 1px rgba(255,255,255,.4); }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="index.html">
+      <div class="app-logo-icon">🍳</div><span>Kitchen App</span>
+    </a>
+    <a class="btn btn-ghost btn-sm" href="index.html">← Back to Kitchen</a>
+  </div>
+</header>
+
+<main class="admin-wrap">
+  <h1 style="font-size:1.4rem;font-weight:800;margin:20px 0 4px;">⚙️ Admin Panel</h1>
+  <p style="color:var(--text3);font-size:.85rem;margin-bottom:20px;">Access control and permissions for the kitchen app</p>
+
+  <!-- Login Screen -->
+  <div id="loginScreen" style="display:none;">
+    <div class="admin-section">
+      <h2>🔑 Admin Login</h2>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="loginUser" type="text" autocomplete="username" placeholder="admin"
+          onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter')doAdminLogin()" />
+      </div>
+      <div class="err-msg" id="loginErr">Incorrect username or password</div>
+      <button class="btn btn-primary btn-lg" style="width:100%;margin-top:16px;" onclick="doAdminLogin()">Login</button>
+    </div>
+  </div>
+
+  <!-- Settings Screen -->
+  <div id="settingsScreen" style="display:none;">
+
+    <div class="admin-status">
+      <div class="status-dot"></div>
+      <span>Admin: <strong id="adminUserLabel"></strong> <span style="color:var(--success);font-size:.75rem;">(logged in to kitchen pages too)</span></span>
+      <a href="index.html" class="btn btn-ghost btn-sm" style="margin-inline-start:auto;">🍳 Kitchen</a>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="doAdminLogout()">Logout</button>
+    </div>
+
+    <!-- Global Access -->
+    <div class="admin-section">
+      <h2>🔒 Global Access</h2>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Require login to use the app</div>
+          <div class="toggle-desc">When on, staff must log in before accessing any page</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="togRequireLogin" onchange="saveGlobal()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Allow new orders (no-login mode)</div>
+          <div class="toggle-desc">When login is not required, anyone can create orders</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="togAllowOrder" onchange="saveGlobal()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Allow adding dishes (no-login mode)</div>
+          <div class="toggle-desc">When login is not required, anyone can add dishes to orders</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="togAllowDish" onchange="saveGlobal()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="admin-section">
+      <h2>👥 Users</h2>
+      <div id="usersContainer"></div>
+
+      <!-- Add user form -->
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:.85rem;font-weight:700;margin-bottom:12px;color:var(--text2);">Add new user</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Username</label>
+            <input class="form-input" id="newUsername" type="text" autocomplete="off" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Password</label>
+            <input class="form-input" id="newUserPass" type="password" autocomplete="off" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Create orders</label>
+            <select class="form-input" id="newUserOrders">
+              <option value="1">Yes — can create orders</option>
+              <option value="0" selected>No — view only</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Date access</label>
+            <select class="form-input" id="newUserDates">
+              <option value="today" selected>Today only</option>
+              <option value="all">All dates</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <label class="form-label">Visible order statuses</label>
+          <div style="font-size:.72rem;color:var(--text3);margin-bottom:6px;">No selection = user sees all statuses</div>
+          <div id="newUserStatusChecks" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+        <div style="margin-top:12px;">
+          <label class="form-label">Visible dish categories</label>
+          <div style="font-size:.72rem;color:var(--text3);margin-bottom:6px;">
+            No selection = user sees all categories
+            <button class="btn btn-ghost btn-sm" style="margin-inline-start:8px;" onclick="loadNewUserCategoryChecks(this)">Load from Airtable</button>
+          </div>
+          <div id="newUserCategoryChecks" style="display:flex;flex-wrap:wrap;gap:6px;font-size:.8rem;color:var(--text3);">—</div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+          <div>
+            <div class="toggle-label" style="font-size:.85rem;">Can change order status</div>
+            <div class="toggle-desc">Allow this user to update the order status in Airtable</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="newUserChangeStatus">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+          <div>
+            <div class="toggle-label" style="font-size:.85rem;">View production summary</div>
+            <div class="toggle-desc">Allow access to the daily production aggregation page</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="newUserViewProduction">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="err-msg" id="newUserErr"></div>
+        <button class="btn btn-primary" style="margin-top:14px;" onclick="addNewUser()">＋ Add user</button>
+      </div>
+    </div>
+
+    <!-- Appearance -->
+    <div class="admin-section">
+      <h2>🎨 Appearance</h2>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Font size</div>
+          <div class="toggle-desc">Adjust text size across all pages</div>
+        </div>
+        <select class="form-input" id="selFontSize" style="width:auto;min-width:110px;" onchange="saveAppearance()">
+          <option value="small">Small (14px)</option>
+          <option value="medium">Medium (16px)</option>
+          <option value="large">Large (18px)</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Accent color</div>
+          <div class="toggle-desc">Primary color for buttons and highlights</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="accent-swatch" data-accent="orange" style="background:#FF6B35;" onclick="setAccent('orange')" title="Orange"></button>
+          <button class="accent-swatch" data-accent="blue"   style="background:#58A6FF;" onclick="setAccent('blue')"   title="Blue"></button>
+          <button class="accent-swatch" data-accent="green"  style="background:#3FB950;" onclick="setAccent('green')"  title="Green"></button>
+          <button class="accent-swatch" data-accent="purple" style="background:#BC8CFF;" onclick="setAccent('purple')" title="Purple"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin credentials — server-side -->
+    <div class="admin-section">
+      <h2>🔐 Admin Credentials</h2>
+      <div style="font-size:.85rem;color:var(--text3);line-height:1.6;">
+        Admin credentials are stored securely as environment variables on Netlify — not in the code.
+        <br><br>
+        To change username or password:
+        <ol style="margin:8px 0 0 18px;display:flex;flex-direction:column;gap:4px;">
+          <li>Open <strong>admin-setup.html</strong> locally to generate a new hash</li>
+          <li>Go to <strong>Netlify → Site → Environment variables</strong></li>
+          <li>Update <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;">ADMIN_USERNAME</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;">ADMIN_PASS_HASH</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;">ADMIN_SECRET</code></li>
+          <li>Redeploy the site</li>
+        </ol>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/settings.js"></script>
+<script>
+SETTINGS.applyAppearance();
+
+// ── Category loader (fetches dish categories from Airtable once, then caches) ──
+let _cachedCategories = null;
+async function loadCategoriesFromAirtable() {
+  if (_cachedCategories !== null) return _cachedCategories;
+  try {
+    const dishes = await API.getAll(CONFIG.TABLES.DISHES, { maxRecords: 300 });
+    _cachedCategories = [...new Set(
+      dishes.map(d => {
+        const v = firstVal(d, CONFIG.FIELDS.DISH_CATEGORY);
+        return v ? String(v).trim() : null;
+      }).filter(Boolean)
+    )].sort();
+    return _cachedCategories;
+  } catch (e) {
+    console.error('Could not load categories:', e);
+    return [];
+  }
+}
+async function loadNewUserCategoryChecks(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+  const cats = await loadCategoriesFromAirtable();
+  if (btn) { btn.disabled = false; btn.textContent = '↺ Reload'; }
+  const el = document.getElementById('newUserCategoryChecks');
+  if (!cats.length) { el.innerHTML = '<span>No categories found in Airtable</span>'; return; }
+  el.innerHTML = cats.map(c => `
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;
+      background:var(--bg3);padding:5px 10px;border-radius:8px;border:1px solid var(--border);">
+      <input type="checkbox" value="${esc(c)}" class="new-user-cat-cb">
+      ${esc(c)}
+    </label>`).join('');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const token = sessionStorage.getItem('kitchen_admin_token');
+  if (token) {
+    const ok = await verifyAdminToken(token);
+    if (ok) { showSettings(); return; }
+    sessionStorage.removeItem('kitchen_admin_token');
+  }
+  showLogin();
+});
+
+async function verifyAdminToken(token) {
+  try {
+    const res = await fetch('/.netlify/functions/admin-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', token }),
+    });
+    const data = await res.json();
+    return data.valid === true;
+  } catch { return false; }
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display   = '';
+  document.getElementById('settingsScreen').style.display = 'none';
+  setTimeout(() => document.getElementById('loginUser').focus(), 80);
+}
+
+function showSettings() {
+  document.getElementById('loginScreen').style.display   = 'none';
+  document.getElementById('settingsScreen').style.display = '';
+  const cfg = SETTINGS.getAll();
+  document.getElementById('adminUserLabel').textContent   = cfg.adminUser;
+  document.getElementById('togRequireLogin').checked      = !!cfg.requireLogin;
+  document.getElementById('togAllowOrder').checked        = !!cfg.allowNewOrder;
+  document.getElementById('togAllowDish').checked         = !!cfg.allowAddDish;
+  document.getElementById('selFontSize').value            = cfg.uiFontSize || 'medium';
+  document.querySelectorAll('.accent-swatch').forEach(b =>
+    b.classList.toggle('active', b.dataset.accent === (cfg.uiColorAccent || 'orange')));
+  populateNewUserStatusChecks();
+  renderUsers();
+}
+
+async function doAdminLogin() {
+  const u     = document.getElementById('loginUser').value.trim();
+  const p     = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.querySelector('#loginScreen .btn-primary');
+
+  btn.disabled = true; btn.textContent = 'Checking...';
+
+  try {
+    const res  = await fetch('/.netlify/functions/admin-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', username: u, password: p }),
+    });
+    const data = await res.json();
+
+    if (res.ok && data.token) {
+      sessionStorage.setItem('kitchen_admin_token', data.token);
+      SETTINGS.loginAdminDirect(data.username);  // create kitchen session too
+      errEl.style.display = 'none';
+      showSettings();
+    } else {
+      errEl.textContent = 'Incorrect username or password';
+      errEl.style.display = '';
+      document.getElementById('loginPass').value = '';
+    }
+  } catch {
+    errEl.textContent = 'Connection error — check your internet and try again';
+    errEl.style.display = '';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Login';
+  }
+}
+function doAdminLogout() {
+  sessionStorage.removeItem('kitchen_admin_token');
+  SETTINGS.logoutAdmin();
+  showLogin();
+}
+
+function saveGlobal() {
+  SETTINGS.save({
+    requireLogin:  document.getElementById('togRequireLogin').checked,
+    allowNewOrder: document.getElementById('togAllowOrder').checked,
+    allowAddDish:  document.getElementById('togAllowDish').checked,
+  });
+  showToast('✓ Settings saved');
+}
+
+// ── User management ──
+function populateNewUserStatusChecks() {
+  const statuses = (typeof CONFIG !== 'undefined') ? CONFIG.ORDER_STATUSES : [];
+  const el = document.getElementById('newUserStatusChecks');
+  if (!el) return;
+  el.innerHTML = statuses.map(s => `
+    <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;
+      background:var(--bg3);padding:5px 10px;border-radius:8px;border:1px solid var(--border);">
+      <input type="checkbox" value="${esc(s)}" class="new-user-status-cb">
+      ${esc(s)}
+    </label>`).join('');
+}
+
+function renderUsers() {
+  const users = SETTINGS.getUsers();
+  const statuses = (typeof CONFIG !== 'undefined') ? CONFIG.ORDER_STATUSES : [];
+  const el = document.getElementById('usersContainer');
+  if (!users.length) {
+    el.innerHTML = `<div style="font-size:.85rem;color:var(--text3);padding:8px 0;">No users yet. Add one below.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <table class="users-table">
+      <thead><tr>
+        <th>Username</th>
+        <th>Create orders</th>
+        <th>Dates</th>
+        <th>Filters</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        ${users.map(u => {
+          const allowed    = u.allowedOrderStatuses || [];
+          const allowedCat = u.allowedCategories    || [];
+          const statusLabel = allowed.length    ? `${allowed.length}/${statuses.length} stat` : 'All stat';
+          const catLabel    = allowedCat.length ? `${allowedCat.length} cat`                 : 'All cat';
+          return `
+        <tr id="urow_${u.id}">
+          <td><strong>${esc(u.username)}</strong></td>
+          <td>${u.allowCreateOrder ? '✓ Yes' : '— No'}</td>
+          <td>
+            ${u.viewDates === 'all'
+              ? '<span class="badge-role badge-all">All dates</span>'
+              : '<span class="badge-role badge-today">Today only</span>'}
+          </td>
+          <td>
+            <div style="font-size:.76rem;line-height:1.6;">
+              <div><span id="statusLabel_${u.id}">${statusLabel}</span>${u.allowChangeOrderStatus ? ' <span class="badge-role badge-all" style="font-size:.62rem;">✏</span>' : ''}</div>
+              <div><span id="catLabel_${u.id}">${catLabel}</span></div>
+            </div>
+          </td>
+          <td style="text-align:end;">
+            <button class="btn btn-ghost btn-sm" onclick="toggleUserOrders('${u.id}', ${!u.allowCreateOrder})"
+              title="${u.allowCreateOrder ? 'Remove order creation' : 'Allow order creation'}">
+              ${u.allowCreateOrder ? '🔒' : '🔓'}
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleUserDates('${u.id}', '${u.viewDates === 'all' ? 'today' : 'all'}')"
+              title="Toggle date access">📅
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleStatusPanel('${u.id}')" title="Edit status permissions">⚙</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="removeUser('${u.id}')">✕</button>
+          </td>
+        </tr>
+        <tr id="upanel_${u.id}" style="display:none;">
+          <td colspan="5" style="padding:12px 10px;background:var(--bg3);border-bottom:1px solid var(--border);">
+            <div style="font-size:.78rem;font-weight:700;margin-bottom:8px;color:var(--text2);">Visible order statuses</div>
+            <div style="font-size:.71rem;color:var(--text3);margin-bottom:8px;">No selection = user sees all statuses</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+              ${statuses.map(s => `
+                <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;
+                  background:var(--bg2);padding:5px 10px;border-radius:8px;border:1px solid var(--border);">
+                  <input type="checkbox" value="${esc(s)}" ${allowed.includes(s) ? 'checked' : ''}
+                    onchange="updateUserAllowedStatus('${u.id}', '${esc(s)}', this.checked)">
+                  ${esc(s)}
+                </label>`).join('')}
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;margin-bottom:6px;">
+              <input type="checkbox" ${u.allowChangeOrderStatus ? 'checked' : ''}
+                onchange="SETTINGS.updateUser('${u.id}', {allowChangeOrderStatus: this.checked}); renderUsers();">
+              Can change order status
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer;">
+              <input type="checkbox" ${u.allowViewProduction ? 'checked' : ''}
+                onchange="SETTINGS.updateUser('${u.id}', {allowViewProduction: this.checked}); renderUsers();">
+              View production summary
+            </label>
+            <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+              <div style="font-size:.78rem;font-weight:700;margin-bottom:4px;color:var(--text2);">Visible dish categories</div>
+              <div style="font-size:.71rem;color:var(--text3);margin-bottom:8px;">No selection = user sees all categories</div>
+              <div id="catPanel_${u.id}" style="display:flex;flex-wrap:wrap;gap:6px;">
+                <span style="font-size:.78rem;color:var(--text3);">Loading...</span>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function toggleStatusPanel(id) {
+  const panel = document.getElementById('upanel_' + id);
+  if (!panel) return;
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  // Load category options lazily
+  const catPanel = document.getElementById('catPanel_' + id);
+  if (catPanel && !catPanel.dataset.loaded) {
+    catPanel.innerHTML = '<span style="font-size:.78rem;color:var(--text3);">⟳ Loading categories...</span>';
+    const user = SETTINGS.getUsers().find(u => u.id === id);
+    const allowedCats = user ? (user.allowedCategories || []) : [];
+    const cats = await loadCategoriesFromAirtable();
+    catPanel.dataset.loaded = 'true';
+    catPanel.innerHTML = !cats.length
+      ? '<span style="font-size:.78rem;color:var(--text3);">No categories found in Airtable</span>'
+      : cats.map(c => `
+        <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;
+          background:var(--bg2);padding:5px 10px;border-radius:8px;border:1px solid var(--border);">
+          <input type="checkbox" value="${esc(c)}" ${allowedCats.includes(c) ? 'checked' : ''}
+            onchange="updateUserAllowedCategory('${id}', '${esc(c)}', this.checked)">
+          ${esc(c)}
+        </label>`).join('');
+  }
+}
+
+function updateUserAllowedCategory(userId, category, checked) {
+  const user = SETTINGS.getUsers().find(u => u.id === userId);
+  if (!user) return;
+  let allowed = [...(user.allowedCategories || [])];
+  if (checked && !allowed.includes(category)) allowed.push(category);
+  if (!checked) allowed = allowed.filter(c => c !== category);
+  SETTINGS.updateUser(userId, { allowedCategories: allowed });
+  const labelEl = document.getElementById('catLabel_' + userId);
+  if (labelEl) labelEl.textContent = allowed.length ? `${allowed.length} cat` : 'All cat';
+}
+
+function updateUserAllowedStatus(userId, status, checked) {
+  const user = SETTINGS.getUsers().find(u => u.id === userId);
+  if (!user) return;
+  let allowed = [...(user.allowedOrderStatuses || [])];
+  if (checked && !allowed.includes(status)) allowed.push(status);
+  if (!checked) allowed = allowed.filter(s => s !== status);
+  SETTINGS.updateUser(userId, { allowedOrderStatuses: allowed });
+  // Update summary label without re-rendering (panel stays open)
+  const statuses = (typeof CONFIG !== 'undefined') ? CONFIG.ORDER_STATUSES : [];
+  const labelEl = document.getElementById('statusLabel_' + userId);
+  if (labelEl) labelEl.textContent = allowed.length ? `${allowed.length}/${statuses.length}` : 'All';
+}
+
+function addNewUser() {
+  const username = document.getElementById('newUsername').value.trim();
+  const pass     = document.getElementById('newUserPass').value;
+  const canOrder = document.getElementById('newUserOrders').value === '1';
+  const dates    = document.getElementById('newUserDates').value;
+  const errEl    = document.getElementById('newUserErr');
+
+  if (!username || !pass) { errEl.textContent = 'Username and password required'; errEl.style.display = ''; return; }
+  if (pass.length < 4)    { errEl.textContent = 'Password must be at least 4 characters'; errEl.style.display = ''; return; }
+  if (SETTINGS.getUsers().find(u => u.username === username)) {
+    errEl.textContent = 'Username already exists'; errEl.style.display = ''; return;
+  }
+  errEl.style.display = 'none';
+  const allowedStatuses   = [...document.querySelectorAll('.new-user-status-cb:checked')].map(cb => cb.value);
+  const allowedCategories = [...document.querySelectorAll('.new-user-cat-cb:checked')].map(cb => cb.value);
+  const canChangeStatus   = document.getElementById('newUserChangeStatus').checked;
+  const canViewProd       = document.getElementById('newUserViewProduction').checked;
+  SETTINGS.addUser({ username, passB64: btoa(pass), allowCreateOrder: canOrder, viewDates: dates,
+    allowedOrderStatuses: allowedStatuses, allowChangeOrderStatus: canChangeStatus,
+    allowedCategories: allowedCategories, allowViewProduction: canViewProd });
+  document.getElementById('newUsername').value = '';
+  document.getElementById('newUserPass').value = '';
+  document.getElementById('newUserChangeStatus').checked = false;
+  document.getElementById('newUserViewProduction').checked = false;
+  document.querySelectorAll('.new-user-status-cb').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.new-user-cat-cb').forEach(cb => cb.checked = false);
+  renderUsers();
+  showToast('✓ User added');
+}
+
+function toggleUserOrders(id, val) {
+  SETTINGS.updateUser(id, { allowCreateOrder: val });
+  renderUsers();
+}
+function toggleUserDates(id, val) {
+  SETTINGS.updateUser(id, { viewDates: val });
+  renderUsers();
+}
+function removeUser(id) {
+  if (!confirm('Delete this user?')) return;
+  SETTINGS.deleteUser(id);
+  renderUsers();
+}
+
+// ── Appearance ──
+function saveAppearance() {
+  const accent = document.querySelector('.accent-swatch.active')?.dataset.accent || 'orange';
+  SETTINGS.save({
+    uiFontSize:    document.getElementById('selFontSize').value,
+    uiColorAccent: accent,
+  });
+  SETTINGS.applyAppearance();
+  showToast('✓ Appearance saved');
+}
+function setAccent(name) {
+  document.querySelectorAll('.accent-swatch').forEach(b =>
+    b.classList.toggle('active', b.dataset.accent === name));
+  saveAppearance();
+}
+
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast success'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2200);
+}
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>

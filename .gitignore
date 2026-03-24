@@ -1,0 +1,20 @@
+# Local setup helper — contains no secrets but should not be deployed
+admin-setup.html
+
+# Dependencies
+node_modules/
+
+# Local env overrides
+.env
+.env.local
+
+# Documentation, guides, and showcase files (not part of the deployed app)
+Finished Presentations/
+data-structure/
+kitchen-video/
+app-showcase-video.html
+netlify-guide.html
+presentation.html
+recipe-costing-guide.html
+recipe-structure-guide.html
+showcase.html

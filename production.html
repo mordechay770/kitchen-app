@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen App — Production</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <script src="js/settings.js"></script>
+  <script>
+    (function () {
+      if (SETTINGS.get('requireLogin') && !SETTINGS.getCurrentUser()) {
+        document.documentElement.style.visibility = 'hidden';
+        location.replace('login.html?redirect=' + encodeURIComponent(location.href));
+      } else {
+        SETTINGS.applyAppearance();
+      }
+    })();
+  </script>
+  <style>
+    .prod-dish {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 8px; overflow: hidden;
+    }
+    .prod-dish-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px; cursor: pointer; user-select: none;
+    }
+    .prod-dish-header:hover { background: var(--bg3); }
+    .prod-dish-expand {
+      font-size: .8rem; color: var(--text3);
+      transition: transform .2s; flex-shrink: 0; width: 14px;
+    }
+    .prod-dish-expand.open { transform: rotate(90deg); }
+    .prod-dish-name  { flex: 1; font-weight: 700; font-size: .97rem; }
+    .prod-dish-total { font-size: 1.15rem; font-weight: 900; color: var(--primary); flex-shrink: 0; }
+    .prod-cat-badge  {
+      font-size: .65rem; padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(74,158,255,.12); color: #4a9eff; border: 1px solid rgba(74,158,255,.25);
+    }
+    .prod-dish-detail { display: none; border-top: 1px solid var(--border); }
+    .prod-dish-detail.open { display: block; }
+    .prod-order-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px 10px 40px; border-bottom: 1px solid var(--border);
+      font-size: .87rem;
+    }
+    .prod-order-row:last-child { border-bottom: none; }
+    .prod-order-row:hover { background: var(--bg3); }
+    .prod-order-link {
+      color: var(--primary); text-decoration: none; font-weight: 600;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+    }
+    .prod-order-qty { font-weight: 700; flex-shrink: 0; }
+    .prod-order-note { font-size: .73rem; color: var(--text3); flex-shrink: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .prod-section-label {
+      font-size: .72rem; font-weight: 800; letter-spacing: .6px;
+      color: var(--text3); text-transform: uppercase;
+      padding: 12px 0 6px; margin-top: 4px;
+    }
+    .prod-summary-bar {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 18px;
+      display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .prod-stat { text-align: center; }
+    .prod-stat-val { font-size: 1.4rem; font-weight: 900; color: var(--primary); }
+    .prod-stat-lbl { font-size: .72rem; color: var(--text3); margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="index.html">
+      <div class="app-logo-icon">🍳</div>
+      <span>Kitchen App</span>
+    </a>
+    <span id="apiCallCounter">API: 0 calls</span>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="ru" onclick="I18N.set('ru')">RU</button>
+      <button class="lang-btn" data-lang="he" onclick="I18N.set('he')">HE</button>
+      <button class="lang-btn" data-lang="en" onclick="I18N.set('en')">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="app-wrap">
+
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-top:16px;margin-bottom:16px;">
+    <div>
+      <a href="index.html" class="nav-back no-print">← <span data-i18n="backOrders">К заказам</span></a>
+      <h1 style="font-size:1.4rem;font-weight:800;margin-top:6px;">📊 <span data-i18n="production">Производство</span></h1>
+    </div>
+    <input type="date" class="filter-input" id="dateInput" style="max-width:170px;" onchange="load()" />
+  </div>
+
+  <div id="pageContent">
+    <div class="loader"><div class="spinner"></div><span data-i18n="loading">Загрузка...</span></div>
+  </div>
+
+</main>
+
+<script src="config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/i18n.js"></script>
+<script>
+const _p = new URLSearchParams(location.search);
+let currentDate = _p.get('date') || todayISO();
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!SETTINGS.checkLoginRequired()) return;
+  // Redirect if no permission
+  if (!SETTINGS.canViewProduction()) { location.replace('index.html'); return; }
+
+  document.getElementById('dateInput').value = currentDate;
+  I18N.apply();
+  load();
+
+  window._rerender = () => { I18N.apply(); };
+});
+
+// ── Load & aggregate ──
+async function load() {
+  currentDate = document.getElementById('dateInput').value || todayISO();
+  const container = document.getElementById('pageContent');
+  container.innerHTML = `<div class="loader"><div class="spinner"></div><span>${t('loading')}</span></div>`;
+  API.resetPageCounter();
+
+  try {
+    // 1 — Orders for this date
+    const orders = await API.getOrdersByDate(currentDate);
+    if (!orders.length) {
+      container.innerHTML = `<div class="empty-state"><div class="emoji">📋</div><p>${t('noOrders')}</p></div>`;
+      return;
+    }
+
+    // 2 — All line item IDs across all orders
+    const allItemIds = orders.flatMap(o => linkedIds(o, CONFIG.FIELDS.ORDER_LINE_ITEMS));
+    if (!allItemIds.length) {
+      container.innerHTML = `<div class="empty-state"><div class="emoji">🍽</div><p>Нет блюд в заказах на эту дату</p></div>`;
+      return;
+    }
+
+    // 3 — Fetch all line items in one batch call
+    const lineItems = await API.getByIds(CONFIG.TABLES.LINE_ITEMS, allItemIds);
+
+    // 4 — Fetch all dishes in one batch call
+    const dishIds = [...new Set(lineItems.map(li => linkedId(li, CONFIG.FIELDS.LINE_ITEM_DISH)).filter(Boolean))];
+    const dishes  = dishIds.length ? await API.getByIds(CONFIG.TABLES.DISHES, dishIds) : [];
+    const dishMap = Object.fromEntries(dishes.map(d => [d.id, d]));
+
+    // 5 — Build line-item → order lookup (O(n))
+    const liToOrder = {};
+    for (const order of orders) {
+      for (const liId of linkedIds(order, CONFIG.FIELDS.ORDER_LINE_ITEMS)) {
+        liToOrder[liId] = order;
+      }
+    }
+
+    // 6 — Aggregate by dish
+    const groups = {};
+    for (const li of lineItems) {
+      const order  = liToOrder[li.id];
+      if (!order) continue;
+
+      const dishId = linkedId(li, CONFIG.FIELDS.LINE_ITEM_DISH);
+      if (!dishId) continue;
+
+      const qty  = parseFloat(field(li, CONFIG.FIELDS.LINE_ITEM_QTY) || 0) || 1;
+      const note = field(li, CONFIG.FIELDS.LINE_ITEM_NOTES_KITCHEN) || '';
+
+      if (!groups[dishId]) {
+        const dish     = dishMap[dishId] || null;
+        const dishName = dish
+          ? (field(dish, CONFIG.FIELDS.DISH_NAME) || field(dish, 'Name') || dishId)
+          : (firstVal(li, CONFIG.FIELDS.LINE_ITEM_NAME) || dishId);
+        const catRaw = dish ? firstVal(dish, CONFIG.FIELDS.DISH_CATEGORY) : null;
+        const cat    = catRaw ? String(catRaw).trim() : '';
+        groups[dishId] = { dishId, dish, name: dishName, category: cat, totalQty: 0, entries: [] };
+      }
+
+      groups[dishId].totalQty += qty;
+      groups[dishId].entries.push({
+        orderId:   order.id,
+        orderName: firstVal(order, CONFIG.FIELDS.ORDER_NAME) || field(order, 'Name') || order.id,
+        serial:    firstVal(order, CONFIG.FIELDS.ORDER_SERIAL) || '',
+        qty,
+        note,
+      });
+    }
+
+    // 7 — Apply category filter
+    const allowedCats = SETTINGS.getAllowedCategories();
+    let groupList = Object.values(groups);
+    if (allowedCats.length > 0) {
+      groupList = groupList.filter(g => !g.category || allowedCats.includes(g.category));
+    }
+
+    // 8 — Sort: category first, then dish name
+    groupList.sort((a, b) => {
+      const c = a.category.localeCompare(b.category, 'ru');
+      return c !== 0 ? c : a.name.localeCompare(b.name, 'ru');
+    });
+
+    render(groupList, orders.length);
+  } catch (err) {
+    container.innerHTML = `
+      <div class="error-state">
+        <p>⚠️ ${escHtml(err.message)}</p>
+        <button class="btn btn-ghost" onclick="load()">${t('retry')}</button>
+      </div>`;
+  }
+}
+
+// ── Render ──
+function render(groups, orderCount) {
+  const container = document.getElementById('pageContent');
+  if (!groups.length) {
+    container.innerHTML = `<div class="empty-state"><div class="emoji">🗂️</div><p>Нет блюд для показа (возможно, ограничение по категориям)</p></div>`;
+    return;
+  }
+
+  const totalPortions = groups.reduce((s, g) => s + g.totalQty, 0);
+
+  // Group by category for section labels
+  const byCategory = [];
+  let lastCat = undefined;
+  for (const g of groups) {
+    if (g.category !== lastCat) {
+      byCategory.push({ cat: g.category, items: [] });
+      lastCat = g.category;
+    }
+    byCategory[byCategory.length - 1].items.push(g);
+  }
+
+  const sections = byCategory.map(({ cat, items }) => `
+    ${cat ? `<div class="prod-section-label">${escHtml(cat)}</div>` : ''}
+    ${items.map((g, gi) => {
+      const globalIdx = groups.indexOf(g);
+      // Build recipe URL
+      let recipeUrl = null;
+      if (g.dish) {
+        const dishType = field(g.dish, CONFIG.FIELDS.DISH_TYPE) || '';
+        const ratio    = parseFloat(field(g.dish, CONFIG.FIELDS.DISH_RATIO) || '1') || 1;
+        const back     = encodeURIComponent('production.html?date=' + currentDate);
+        const base     = `dish_name=${encodeURIComponent(g.name)}&qty=${g.totalQty}&back=${back}`;
+        if (dishType === 'מתכון מורכב') {
+          recipeUrl = `recipe.html?dish_id=${g.dish.id}&${base}`;
+        } else {
+          const recipeId = linkedId(g.dish, CONFIG.FIELDS.DISH_RECIPE);
+          if (recipeId) recipeUrl = `recipe.html?recipe_id=${recipeId}&ratio=${ratio}&${base}`;
+        }
+      }
+
+      return `
+      <div class="prod-dish">
+        <div class="prod-dish-header" onclick="toggleDetail(${globalIdx})">
+          <span class="prod-dish-expand" id="exp_${globalIdx}">▶</span>
+          <div class="prod-dish-name">${escHtml(g.name)}</div>
+          ${g.category ? `<span class="prod-cat-badge">${escHtml(g.category)}</span>` : ''}
+          <span class="prod-dish-total">× ${g.totalQty}</span>
+          ${recipeUrl
+            ? `<a href="${escHtml(recipeUrl)}" class="icon-btn" onclick="event.stopPropagation()" title="Состав (BOM)" style="font-size:1.1rem;">📖</a>`
+            : ''}
+        </div>
+        <div class="prod-dish-detail" id="det_${globalIdx}">
+          ${g.entries.map(e => `
+          <div class="prod-order-row">
+            <a href="order.html?id=${encodeURIComponent(e.orderId)}" class="prod-order-link" onclick="event.stopPropagation()">
+              ${e.serial ? `<span style="color:var(--text3);">#${escHtml(e.serial)} </span>` : ''}${escHtml(e.orderName)}
+            </a>
+            <span class="prod-order-qty">× ${e.qty}</span>
+            ${e.note ? `<span class="prod-order-note">💬 ${escHtml(e.note)}</span>` : ''}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+  `).join('');
+
+  container.innerHTML = `
+    <div class="prod-summary-bar">
+      <div class="prod-stat">
+        <div class="prod-stat-val">${orderCount}</div>
+        <div class="prod-stat-lbl" data-i18n="orders">${t('orders')}</div>
+      </div>
+      <div class="prod-stat">
+        <div class="prod-stat-val">${groups.length}</div>
+        <div class="prod-stat-lbl" data-i18n="dishes">${t('dishes')}</div>
+      </div>
+      <div class="prod-stat">
+        <div class="prod-stat-val" style="color:var(--success);">${totalPortions}</div>
+        <div class="prod-stat-lbl">Порций</div>
+      </div>
+    </div>
+    ${sections}
+  `;
+  I18N.apply();
+}
+
+function toggleDetail(i) {
+  const det = document.getElementById('det_' + i);
+  const exp = document.getElementById('exp_' + i);
+  if (det) det.classList.toggle('open');
+  if (exp) exp.classList.toggle('open');
+}
+
+function t(key) {
+  return (typeof I18N !== 'undefined' && I18N.t) ? I18N.t(key) : key;
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

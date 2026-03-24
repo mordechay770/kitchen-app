@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen App — Recipe</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <script src="js/settings.js"></script>
+  <script>
+    (function () {
+      if (SETTINGS.get('requireLogin') && !SETTINGS.getCurrentUser()) {
+        document.documentElement.style.visibility = 'hidden';
+        location.replace('login.html?redirect=' + encodeURIComponent(location.href));
+      } else {
+        SETTINGS.applyAppearance();
+      }
+    })();
+  </script>
+  <style>
+    .calc-qty { font-size:1.05rem; font-weight:900; color:var(--primary); }
+    .base-qty { font-size:.68rem; color:var(--text3); display:block; margin-top:1px; }
+    .sub-recipe-header {
+      padding:12px 18px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+      background:var(--bg3);
+    }
+    .sub-recipe-title { font-weight:800; font-size:1rem; }
+    .sub-recipe-notes { font-size:.75rem; color:var(--text3); margin-top:2px; }
+    @media print {
+      .no-print, .app-header { display:none!important; }
+      body { background:#fff; color:#000; }
+      .calc-qty { color:#c04010!important; }
+      .recipe-hero { background:#f5f5f5!important; border:1px solid #ccc!important; }
+      .multiplier-badge { background:#ff6b35!important; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="app-header no-print">
+  <div class="app-header-inner">
+    <a class="app-logo" href="index.html">
+      <div class="app-logo-icon">🍳</div>
+      <span>Kitchen App</span>
+    </a>
+    <span id="apiCallCounter">API: 0 calls</span>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="ru" onclick="I18N.set('ru')">RU</button>
+      <button class="lang-btn" data-lang="he" onclick="I18N.set('he')">HE</button>
+      <button class="lang-btn" data-lang="en" onclick="I18N.set('en')">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="app-wrap">
+  <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+    <a id="backLink" href="index.html" class="nav-back">← <span data-i18n="backOrder">К заказу</span></a>
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 <span data-i18n="printPage">Печать</span></button>
+  </div>
+
+  <div id="pageContent">
+    <div class="loader"><div class="spinner"></div><span data-i18n="loading">Загрузка...</span></div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/i18n.js"></script>
+<script>
+// URL params
+//   Simple path:  recipe_id + ratio + qty
+//   Complex path: dish_id + qty
+const p         = new URLSearchParams(location.search);
+const RECIPE_ID   = p.get('recipe_id');   // simple path
+const DISH_ID     = p.get('dish_id');     // complex path
+const ITEM_ID     = p.get('item_id');
+const QTY         = parseFloat(p.get('qty') || '0');
+const RATIO       = parseFloat(p.get('ratio') || '1') || 1;
+const ORDER_ID    = p.get('order_id');
+const DISH_NAME   = decodeURIComponent(p.get('dish_name') || '');
+const DISH_STATUS = decodeURIComponent(p.get('dish_status') || '');
+const BACK_URL    = p.get('back') || null;  // custom back link (e.g. from production.html)
+
+let _cachedData = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  I18N.apply();
+  if (ORDER_ID)   document.getElementById('backLink').href = `order.html?id=${ORDER_ID}`;
+  else if (BACK_URL) document.getElementById('backLink').href = BACK_URL;
+  if (!RECIPE_ID && !DISH_ID) { showError('No recipe_id or dish_id'); return; }
+  loadRecipe();
+  window._rerender = () => { if (_cachedData) render(_cachedData); I18N.apply(); };
+});
+
+// ── Load ──
+// Simple:  2 API calls (recipe + BOM)
+// Complex: 4 API calls (dish + composite + recipes + BOM)
+async function loadRecipe() {
+  API.resetPageCounter();
+  try {
+    if (RECIPE_ID) {
+      // ── Simple path ──
+      const recipe   = await API.getOne(CONFIG.TABLES.RECIPES, RECIPE_ID);      // call 1
+      const bomIds   = linkedIds(recipe, CONFIG.FIELDS.RECIPE_BOM);
+      const bomRaw   = bomIds.length
+        ? await API.getByIds(CONFIG.TABLES.BOM, bomIds)                          // call 2
+        : [];
+      // Re-sort to preserve linked-field order
+      const _bomById  = Object.fromEntries(bomRaw.map(b => [b.id, b]));
+      const bomItems  = bomIds.map(id => _bomById[id]).filter(Boolean);
+      _cachedData = { mode: 'simple', recipe, bomItems, ratio: RATIO };
+      render(_cachedData);
+
+    } else if (DISH_ID) {
+      // ── Complex path ──
+      const dish         = await API.getOne(CONFIG.TABLES.DISHES, DISH_ID);     // call 1
+      const compositeIds = linkedIds(dish, CONFIG.FIELDS.DISH_COMPOSITE);
+
+      if (!compositeIds.length) {
+        // Fallback: complex dish with no composite rows → try direct recipe
+        const recipeId = linkedId(dish, CONFIG.FIELDS.DISH_RECIPE);
+        const ratio    = parseFloat(field(dish, CONFIG.FIELDS.DISH_RATIO) || '1') || 1;
+        if (recipeId) {
+          const recipe      = await API.getOne(CONFIG.TABLES.RECIPES, recipeId);
+          const bomIds2     = linkedIds(recipe, CONFIG.FIELDS.RECIPE_BOM);
+          const bomRaw2     = bomIds2.length ? await API.getByIds(CONFIG.TABLES.BOM, bomIds2) : [];
+          const _bomById2   = Object.fromEntries(bomRaw2.map(b => [b.id, b]));
+          const bomItems    = bomIds2.map(id => _bomById2[id]).filter(Boolean);
+          _cachedData = { mode: 'simple', recipe, bomItems, ratio };
+          render(_cachedData);
+        } else {
+          showError('No composite rows and no recipe found in dish');
+        }
+        return;
+      }
+
+      const compositeRows = await API.getByIds(CONFIG.TABLES.COMPOSITE, compositeIds); // call 2
+
+      // Batch-load all recipes from composite rows
+      const recipeIds = [...new Set(
+        compositeRows.map(cr => linkedId(cr, CONFIG.FIELDS.COMPOSITE_RECIPE)).filter(Boolean)
+      )];
+      const recipes   = recipeIds.length
+        ? await API.getByIds(CONFIG.TABLES.RECIPES, recipeIds)                   // call 3
+        : [];
+      const recipeMap = Object.fromEntries(recipes.map(r => [r.id, r]));
+
+      // Batch-load all BOM items from all recipes
+      const allBomIds = [...new Set(recipes.flatMap(r => linkedIds(r, CONFIG.FIELDS.RECIPE_BOM)))];
+      const bomItems  = allBomIds.length
+        ? await API.getByIds(CONFIG.TABLES.BOM, allBomIds)                       // call 4
+        : [];
+      const bomMap    = Object.fromEntries(bomItems.map(b => [b.id, b]));
+
+      _cachedData = { mode: 'complex', dish, compositeRows, recipeMap, bomMap };
+      render(_cachedData);
+    }
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+// ── Dispatch ──
+function render(data) {
+  if (data.mode === 'simple') renderSimple(data);
+  else                        renderComplex(data);
+  I18N.apply();
+}
+
+// ── Simple recipe ──
+function renderSimple({ recipe, bomItems, ratio }) {
+  const dishName   = DISH_NAME || firstVal(recipe, CONFIG.FIELDS.RECIPE_NAME) || field(recipe, 'Name') || RECIPE_ID;
+  const multiplier = QTY ? QTY * ratio : ratio;
+  const multStr    = fmtMult(multiplier);
+
+  const kosherNote   = firstVal(recipe, CONFIG.FIELDS.RECIPE_KOSHER_NOTE) || '';
+  const equipmentRaw = firstVal(recipe, CONFIG.FIELDS.RECIPE_EQUIPMENT) || '';
+  const isDone       = ITEM_ID ? PROGRESS.isDone(ITEM_ID) : false;
+  const doneTime     = ITEM_ID ? PROGRESS.getTime(ITEM_ID) : null;
+
+  document.title = `${dishName} ×${multStr} — Kitchen App`;
+
+  const html = `
+    <div class="recipe-hero">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.75rem;color:var(--primary2);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;" data-i18n="recipe">${t('recipe')}</div>
+        <div class="recipe-hero-title">${escHtml(dishName)}${statusBadgeHtml(DISH_STATUS)}</div>
+        <div style="margin-top:10px;font-size:.85rem;color:var(--text3);">
+          ${t('orderedPortions')}: <strong style="color:var(--text)">${QTY}</strong> ${t('portions')}
+          ${ratio !== 1 ? `<span style="margin-inline-start:6px;opacity:.7;">× ${ratio} ratio</span>` : ''}
+        </div>
+      </div>
+      <div class="multiplier-badge">
+        <div class="mult-x">×${multStr}</div>
+        <div class="mult-label">${t('multiplier').toUpperCase()}</div>
+      </div>
+    </div>
+
+    ${statusWarningHtml(DISH_STATUS)}
+
+    <div class="formula-box">
+      ${QTY} ${t('portions')}${ratio !== 1 ? ` × ${ratio} ratio` : ''} → ×${multStr}
+    </div>
+
+    ${kosherNote ? `
+    <div class="kosher-block">
+      <div class="kosher-block-icon">⚠️</div>
+      <div class="kosher-block-text">
+        <div class="title" data-i18n="kosherNote">${t('kosherNote')}</div>
+        <div class="body">${escHtml(kosherNote)}</div>
+      </div>
+    </div>` : ''}
+
+    ${equipmentRaw ? `
+    <div style="margin:10px 0 14px;">
+      <div style="font-size:.75rem;color:var(--text3);text-transform:uppercase;margin-bottom:6px;" data-i18n="equipment">ציוד</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${equipmentRaw.split(/[,;،]/).map(e=>e.trim()).filter(Boolean)
+          .map(e=>`<span style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px 12px;font-size:.85rem;">🔧 ${escHtml(e)}</span>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="section-header">
+      <h2 data-i18n="ingredients">${t('ingredients')}</h2>
+      <span style="font-size:.8rem;color:var(--text3);">${bomItems.length} ${t('items')}</span>
+    </div>
+
+    ${renderBomTable(bomItems, multiplier, QTY, ratio)}
+
+    ${ITEM_ID ? `
+    <div id="chefSection" style="margin-top:20px;">
+      ${isDone ? doneBanner(doneTime) : `<button class="mark-done-btn" onclick="toggleDone()">✓ ${t('markDone')}</button>`}
+    </div>` : ''}
+  `;
+
+  document.getElementById('pageContent').innerHTML = html;
+}
+
+// ── Complex recipe ──
+function renderComplex({ dish, compositeRows, recipeMap, bomMap }) {
+  const dishName = DISH_NAME || field(dish, CONFIG.FIELDS.DISH_NAME) || field(dish, 'Name') || DISH_ID;
+  const isDone   = ITEM_ID ? PROGRESS.isDone(ITEM_ID) : false;
+  const doneTime = ITEM_ID ? PROGRESS.getTime(ITEM_ID) : null;
+
+  document.title = `${dishName} ×${QTY} — Kitchen App`;
+
+  const sectionsHtml = compositeRows.map(cr => {
+    const subRatio = parseFloat(field(cr, CONFIG.FIELDS.COMPOSITE_RATIO) || '0') || 0;
+    const subMult  = QTY ? QTY * subRatio : subRatio;
+    const subStr   = fmtMult(subMult);
+    const crNotes  = field(cr, CONFIG.FIELDS.COMPOSITE_NOTES) || '';
+
+    const recipeId = linkedId(cr, CONFIG.FIELDS.COMPOSITE_RECIPE);
+    const recipe   = recipeMap[recipeId];
+    if (!recipe) return `<div style="padding:12px;color:var(--danger);">⚠️ Recipe not found for composite row</div>`;
+
+    const recipeName = firstVal(recipe, CONFIG.FIELDS.RECIPE_NAME) || field(recipe, 'Name') || recipeId;
+    const kosherNote = firstVal(recipe, CONFIG.FIELDS.RECIPE_KOSHER_NOTE) || '';
+    const bomIds     = linkedIds(recipe, CONFIG.FIELDS.RECIPE_BOM);
+    const bomItems   = bomIds.map(id => bomMap[id]).filter(Boolean);
+
+    return `
+    <div class="card" style="overflow:hidden;margin-bottom:14px;">
+      <div class="sub-recipe-header">
+        <div style="flex:1;">
+          <div class="sub-recipe-title">${escHtml(recipeName)}</div>
+          ${crNotes    ? `<div class="sub-recipe-notes">📝 ${escHtml(crNotes)}</div>` : ''}
+          ${kosherNote ? `<div class="sub-recipe-notes" style="color:var(--warning);">⚠️ ${escHtml(kosherNote)}</div>` : ''}
+        </div>
+        <div class="multiplier-badge" style="flex-shrink:0;">
+          <div class="mult-x">×${subStr}</div>
+          <div class="mult-label">${QTY}×${subRatio}</div>
+        </div>
+      </div>
+      ${renderBomTable(bomItems, subMult, QTY, subRatio)}
+    </div>`;
+  }).join('');
+
+  const html = `
+    <div class="recipe-hero">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.75rem;color:#4a9eff;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;" data-i18n="complexRecipe">${t('complexRecipe')}</div>
+        <div class="recipe-hero-title">${escHtml(dishName)}${statusBadgeHtml(DISH_STATUS)}</div>
+        <div style="margin-top:10px;font-size:.85rem;color:var(--text3);">
+          ${t('orderedPortions')}: <strong style="color:var(--text)">${QTY}</strong> ${t('portions')}
+          · ${compositeRows.length} ${t('subRecipes')}
+        </div>
+      </div>
+      <div class="multiplier-badge">
+        <div class="mult-x">×${QTY}</div>
+        <div class="mult-label">${t('multiplier').toUpperCase()}</div>
+      </div>
+    </div>
+
+    ${statusWarningHtml(DISH_STATUS)}
+
+    <div class="section-header">
+      <h2>${t('ingredients')}</h2>
+      <span style="font-size:.8rem;color:var(--text3);">${compositeRows.length} ${t('subRecipes')}</span>
+    </div>
+
+    ${sectionsHtml}
+
+    ${ITEM_ID ? `
+    <div id="chefSection" style="margin-top:20px;">
+      ${isDone ? doneBanner(doneTime) : `<button class="mark-done-btn" onclick="toggleDone()">✓ ${t('markDone')}</button>`}
+    </div>` : ''}
+  `;
+
+  document.getElementById('pageContent').innerHTML = html;
+}
+
+// ── BOM table (shared) ──
+function renderBomTable(bomItems, multiplier, qty, ratio) {
+  if (!bomItems.length) {
+    return `<div class="card"><div class="empty-state" style="padding:24px;"><p>${t('noIngredients')}</p></div></div>`;
+  }
+  return `
+  <div class="card" style="overflow:hidden;margin-bottom:12px;">
+    <table class="ingredients-table">
+      <thead>
+        <tr>
+          <th data-i18n="ingredient">${t('ingredient')}</th>
+          <th data-i18n="brutto">${t('brutto')}</th>
+          <th>Нетто до</th>
+          <th>Нетто после</th>
+          <th data-i18n="unit">${t('unit')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${bomItems.map(bom => renderIngredient(bom, multiplier, qty, ratio)).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ── Single ingredient row ──
+function renderIngredient(bom, multiplier, qty, ratio) {
+  const nameLookup = field(bom, CONFIG.FIELDS.BOM_NAME);
+  const name = (Array.isArray(nameLookup) ? nameLookup[0] : nameLookup)
+    || field(bom, CONFIG.FIELDS.BOM_NAME_TEXT)
+    || field(bom, 'Name') || '—';
+
+  const baseQty       = parseFloat(field(bom, CONFIG.FIELDS.BOM_QTY)                                              || 0) || null;
+  // Try full field name first, fallback to short name (field name may vary between Airtable bases)
+  const baseNetBefore = parseFloat(field(bom, CONFIG.FIELDS.BOM_NETTO_BEFORE) ?? field(bom, 'Нетто до т/о')      ?? 0) || null;
+  const baseNetAfter  = parseFloat(field(bom, CONFIG.FIELDS.BOM_NETTO_AFTER)  ?? field(bom, 'Нетто после т/о')   ?? 0) || null;
+  const notes         = field(bom, CONFIG.FIELDS.BOM_NOTES) || '';
+
+  // Unit: lookup field → firstVal + trim
+  const unitRaw = firstVal(bom, CONFIG.FIELDS.BOM_UNIT) || field(bom, CONFIG.FIELDS.BOM_UNIT) || '';
+  const unit = String(unitRaw).trim();
+
+  const calcQty       = baseQty       ? baseQty       * multiplier : null;
+  const calcNetBefore = baseNetBefore ? baseNetBefore * multiplier : null;
+  const calcNetAfter  = baseNetAfter  ? baseNetAfter  * multiplier : null;
+
+  // Show breakdown only when ratio ≠ 1
+  const calcNote = qty && ratio !== 1
+    ? `1 ${t('portion')} = ${fmtQ(baseQty)} | ×${qty} × ${ratio}`
+    : `1 ${t('portion')} = ${fmtQ(baseQty)}`;
+
+  function qtyCell(base, calc) {
+    if (calc === null) return '<td>—</td>';
+    return `<td>
+      <span class="calc-qty">${fmtQ(calc)}</span>
+      ${base ? `<span class="base-qty">${calcNote}</span>` : ''}
+    </td>`;
+  }
+
+  return `
+  <tr>
+    <td>${escHtml(name)}${notes ? `<br><span style="font-size:.7rem;color:var(--text3);">${escHtml(notes)}</span>` : ''}</td>
+    ${qtyCell(baseQty, calcQty)}
+    ${qtyCell(baseNetBefore, calcNetBefore)}
+    ${qtyCell(baseNetAfter, calcNetAfter)}
+    <td>${escHtml(unit)}</td>
+  </tr>`;
+}
+
+// ── Mark done ──
+function doneBanner(time) {
+  return `<div class="all-done-banner" style="display:flex;align-items:center;gap:12px;justify-content:center;">
+    ✓ ${t('done')} ${time ? `— ${t('preparedAt')} ${time}` : ''}
+    <button class="btn btn-ghost btn-sm" onclick="toggleDone()">${t('markUndone')}</button>
+  </div>`;
+}
+
+async function toggleDone() {
+  if (!ITEM_ID) return;
+  const newDone = !PROGRESS.isDone(ITEM_ID);
+  await PROGRESS.setDone(ITEM_ID, newDone);
+  const time    = PROGRESS.getTime(ITEM_ID);
+  const section = document.getElementById('chefSection');
+  if (!section) return;
+  section.innerHTML = newDone
+    ? doneBanner(time)
+    : `<button class="mark-done-btn" onclick="toggleDone()">✓ ${t('markDone')}</button>`;
+}
+
+// ── Format helpers ──
+function fmtQ(q) {
+  if (q === null || q === undefined || isNaN(q) || q === 0) return '—';
+  if (q >= 100) return Math.round(q).toString();
+  if (q >= 10)  return parseFloat(q.toFixed(1)).toString();
+  return parseFloat(q.toFixed(3)).toString();
+}
+
+function fmtMult(m) {
+  if (!m) return '0';
+  if (Number.isInteger(m)) return String(m);
+  return parseFloat(m.toFixed(3)).toString();
+}
+
+// ── Status helpers ──
+function statusColor(s) {
+  if (!s) return 'gray';
+  const low = s.toLowerCase();
+  if (/פעיל|active|approved|מאושר/.test(low)) return 'green';
+  if (/בפיתוח|develop|test|טסט|בדיקה|review|ניסוי/.test(low)) return 'yellow';
+  if (/לא|inactive|ארכי|בוטל|cancel/.test(low)) return 'red';
+  if (/חדש|new|draft|טיוטה/.test(low)) return 'blue';
+  return 'gray';
+}
+
+function statusBadgeHtml(s) {
+  if (!s) return '';
+  const clsMap = { green:'badge-green', yellow:'badge-yellow', red:'badge-red', blue:'badge-blue', gray:'badge-gray' };
+  const cls = clsMap[statusColor(s)] || 'badge-gray';
+  return `<span class="badge ${cls}" style="font-size:.72rem;vertical-align:middle;margin-inline-start:8px;">${escHtml(s)}</span>`;
+}
+
+function statusWarningHtml(s) {
+  if (!s || statusColor(s) === 'green' || statusColor(s) === 'gray') return '';
+  const colorMap = { yellow: 'var(--warning)', red: 'var(--danger)', blue: 'var(--blue)' };
+  const bgMap    = { yellow: 'rgba(210,153,34,0.07)', red: 'rgba(248,81,73,0.07)', blue: 'rgba(88,166,255,0.07)' };
+  const bdMap    = { yellow: 'rgba(210,153,34,0.3)', red: 'rgba(248,81,73,0.3)', blue: 'rgba(88,166,255,0.3)' };
+  const c = statusColor(s);
+  return `<div style="background:${bgMap[c]};border:1px solid ${bdMap[c]};border-radius:10px;padding:10px 16px;margin:10px 0;font-size:.85rem;color:${colorMap[c]};display:flex;gap:10px;align-items:center;">
+    <span style="font-size:1.2rem;">⚠️</span>
+    <span><strong>סטטוס מתכון: ${escHtml(s)}</strong> — ייתכן שיש שינויים שממתינים לאישור.</span>
+  </div>`;
+}
+
+function showError(msg) {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="error-state">
+      <p>⚠️ ${t('errorLoad')}: ${escHtml(msg)}</p>
+      <button class="btn btn-ghost" onclick="loadRecipe()">${t('retry')}</button>
+    </div>`;
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

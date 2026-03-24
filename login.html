@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen App — Login</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-card {
+      width: 100%; max-width: 380px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 36px 28px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.4);
+    }
+    .login-logo { font-size: 3rem; text-align: center; margin-bottom: 8px; }
+    .login-title { font-size: 1.4rem; font-weight: 800; text-align: center; margin-bottom: 4px; }
+    .login-sub   { font-size: .85rem; color: var(--text3); text-align: center; margin-bottom: 28px; }
+    .err-msg { color: var(--danger); font-size: .85rem; margin-top: 10px; text-align: center; display: none; }
+  </style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="login-logo">🍳</div>
+  <div class="login-title">Kitchen App</div>
+  <div class="login-sub">Введите данные для входа</div>
+
+  <div class="form-group">
+    <label class="form-label">Имя пользователя</label>
+    <input class="form-input" id="loginUser" type="text" autocomplete="username"
+      placeholder="username" onkeydown="if(event.key==='Enter')focusPass()" />
+  </div>
+  <div class="form-group">
+    <label class="form-label">Пароль</label>
+    <input class="form-input" id="loginPass" type="password" autocomplete="current-password"
+      id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+  </div>
+
+  <div class="err-msg" id="loginErr">Неверное имя пользователя или пароль</div>
+
+  <button class="btn btn-primary btn-lg" style="width:100%;margin-top:18px;" onclick="doLogin()" id="loginBtn">
+    Войти
+  </button>
+</div>
+
+<script src="js/settings.js"></script>
+<script>
+SETTINGS.applyAppearance();
+const redirect = new URLSearchParams(location.search).get('redirect') || 'index.html';
+
+// Already logged in → skip
+if (SETTINGS.getCurrentUser()) location.replace(redirect);
+
+function focusPass() { document.getElementById('loginPass').focus(); }
+
+function doLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn');
+
+  if (!user || !pass) { errEl.style.display = ''; return; }
+
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  if (SETTINGS.loginUser(user, pass)) {
+    errEl.style.display = 'none';
+    location.replace(redirect);
+  } else {
+    errEl.style.display = '';
+    btn.disabled = false;
+    btn.textContent = 'Войти';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+}
+</script>
+</body>
+</html>

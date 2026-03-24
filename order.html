@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen App — Order</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <script src="js/settings.js"></script>
+  <script>
+    (function () {
+      if (SETTINGS.get('requireLogin') && !SETTINGS.getCurrentUser()) {
+        document.documentElement.style.visibility = 'hidden';
+        location.replace('login.html?redirect=' + encodeURIComponent(location.href));
+      } else {
+        SETTINGS.applyAppearance();
+      }
+    })();
+  </script>
+  <style>
+    .order-info-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0;
+    }
+    .info-cell {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+    }
+    .info-cell-label { font-size: .72rem; color: var(--text3); text-transform: uppercase; margin-bottom:4px; }
+    .info-cell-value { font-size: .95rem; font-weight: 600; }
+    .all-done-banner {
+      background: var(--success-bg); border: 1px solid rgba(63,185,80,0.4);
+      border-radius: var(--radius); padding: 14px 18px;
+      text-align: center; color: var(--success); font-weight: 700; margin: 12px 0;
+    }
+    .dish-list-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; margin-inline-end: 4px; }
+    .sync-dot.offline { background: var(--text3); }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="index.html">
+      <div class="app-logo-icon">🍳</div>
+      <span>Kitchen App</span>
+    </a>
+    <span id="apiCallCounter">API: 0 calls</span>
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="ru" onclick="I18N.set('ru')">RU</button>
+      <button class="lang-btn" data-lang="he" onclick="I18N.set('he')">HE</button>
+      <button class="lang-btn" data-lang="en" onclick="I18N.set('en')">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="app-wrap">
+  <a href="index.html" class="nav-back no-print">← <span data-i18n="backOrders">К заказам</span></a>
+  <div id="pageContent">
+    <div class="loader"><div class="spinner"></div><span data-i18n="loading">Загрузка...</span></div>
+  </div>
+</main>
+
+<!-- QR Modal -->
+<div id="qrModal" class="modal-overlay" style="display:none;" onclick="closeQR()">
+  <div class="modal-box" style="text-align:center;" onclick="event.stopPropagation()">
+    <h3 id="qrTitle">QR</h3>
+    <div id="qrContainer"></div>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:10px;word-break:break-all;" id="qrUrl"></div>
+    <button class="btn btn-ghost btn-lg modal-close" onclick="closeQR()">✕</button>
+  </div>
+</div>
+
+<!-- Add Dish Modal -->
+<div id="addDishModal" class="modal-overlay" style="display:none;" onclick="closeAddDish()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3>＋ <span data-i18n="addDish">Добавить блюдо</span></h3>
+
+    <div class="form-group">
+      <input class="form-input" id="dishSearchInput" type="text"
+        data-i18n-ph="searchDish" placeholder="Поиск блюда..."
+        oninput="filterDishes()" />
+    </div>
+    <div id="categoryRow" style="display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 8px;"></div>
+    <div id="statusRow" style="display:none;flex-wrap:wrap;gap:6px;margin:-4px 0 10px;"></div>
+    <div class="dish-search-list" id="dishList">
+      <div class="loader" style="padding:20px;"><div class="spinner"></div></div>
+    </div>
+
+    <div class="form-group" style="margin-top:14px;">
+      <label class="form-label" data-i18n="quantityLabel">Количество порций</label>
+      <input class="form-input" id="addDishQty" type="number" min="1" value="1" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-i18n="kitchenNote">Примечание кухне</label>
+      <input class="form-input" id="addDishNote" type="text" />
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-primary btn-lg" style="flex:1;" id="addDishBtn" onclick="addDishToOrder()">
+        <span data-i18n="add">Добавить</span>
+      </button>
+      <button class="btn btn-ghost btn-lg" onclick="closeAddDish()">
+        <span data-i18n="cancel">Отмена</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/i18n.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+const params   = new URLSearchParams(location.search);
+const ORDER_ID = params.get('id');
+
+let _lineItems = [];
+let _allDishes = [];      // for add-dish picker
+let _selectedDishId = null;
+let _selectedCategory = null;
+let _selectedStatus = null;
+let _dishMap = {};        // dish.id → dish record
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!SETTINGS.checkLoginRequired()) return;
+  I18N.apply();
+  if (!ORDER_ID) { showError('No order ID'); return; }
+  loadOrder();
+  window._rerender = () => { I18N.apply(); renderPage(_cachedOrder, _cachedLineItems, _dishMap); };
+});
+
+let _cachedOrder = null, _cachedLineItems = [];
+
+// ── API calls: 1 (order) + 1 (batch line items) + 1 (batch dishes) = 3 calls ──
+async function loadOrder() {
+  API.resetPageCounter();
+  try {
+    const order = await API.getOne(CONFIG.TABLES.ORDERS, ORDER_ID);   // call 1
+    _cachedOrder = order;
+
+    const itemIds = linkedIds(order, CONFIG.FIELDS.ORDER_LINE_ITEMS);
+    const lineItems = itemIds.length
+      ? await API.getByIds(CONFIG.TABLES.LINE_ITEMS, itemIds)         // call 2
+      : [];
+    _cachedLineItems = lineItems;
+
+    // Load dishes to get ratio + recipe type for each line item
+    const dishIds = [...new Set(
+      lineItems.map(li => linkedId(li, CONFIG.FIELDS.LINE_ITEM_DISH)).filter(Boolean)
+    )];
+    const dishes = dishIds.length
+      ? await API.getByIds(CONFIG.TABLES.DISHES, dishIds)             // call 3
+      : [];
+    _dishMap = Object.fromEntries(dishes.map(d => [d.id, d]));
+
+    renderPage(order, lineItems, _dishMap);
+  } catch (err) { showError(err.message); }
+}
+
+function renderPage(order, lineItems, dishMap) {
+  const name       = firstVal(order, CONFIG.FIELDS.ORDER_NAME) || field(order, 'Name') || ORDER_ID;
+  const serial     = firstVal(order, CONFIG.FIELDS.ORDER_SERIAL) || '';
+  const dateDisp   = firstVal(order, CONFIG.FIELDS.ORDER_DATE_DISPLAY) || '';
+  const status     = firstVal(order, CONFIG.FIELDS.ORDER_STATUS) || '';
+  const cookStatus = firstVal(order, CONFIG.FIELDS.ORDER_COOK_STATUS) || '';
+  const address    = firstVal(order, CONFIG.FIELDS.ORDER_ADDRESS) || '';
+  const location   = firstVal(order, CONFIG.FIELDS.ORDER_LOCATION) || '';
+  const eventType  = firstVal(order, CONFIG.FIELDS.ORDER_EVENT_TYPE) || '';
+  const notesKit   = field(order, CONFIG.FIELDS.ORDER_NOTES_KITCHEN) || '';
+  const notesEvent = field(order, CONFIG.FIELDS.ORDER_NOTES_EVENT) || '';
+  const delivery   = field(order, CONFIG.FIELDS.ORDER_DELIVERY) || false;
+  const clientLast = firstVal(order, CONFIG.FIELDS.ORDER_CLIENT_LAST) || '';
+  const clientFirst= firstVal(order, CONFIG.FIELDS.ORDER_CLIENT_FIRST) || '';
+  const clientPhone= firstVal(order, CONFIG.FIELDS.ORDER_CLIENT_PHONE) || '';
+  const people     = field(order, CONFIG.FIELDS.ORDER_PEOPLE) || '';
+
+  const clientName = [clientFirst, clientLast].filter(Boolean).join(' ');
+
+  // Filter line items by allowed categories
+  const allowedCats = SETTINGS.getAllowedCategories();
+  let displayItems = lineItems;
+  if (allowedCats.length > 0) {
+    displayItems = lineItems.filter(li => {
+      const dishId = linkedId(li, CONFIG.FIELDS.LINE_ITEM_DISH);
+      const dish   = dishId ? (dishMap[dishId] || null) : null;
+      if (!dish) return true;  // no dish record → always show
+      const cat = firstVal(dish, CONFIG.FIELDS.DISH_CATEGORY);
+      return !cat || allowedCats.includes(String(cat).trim());
+    });
+  }
+
+  const doneCount  = PROGRESS.countDone(displayItems.map(li => li.id));
+  const pct        = displayItems.length ? Math.round((doneCount / displayItems.length) * 100) : 0;
+  const allDone    = displayItems.length > 0 && doneCount === displayItems.length;
+  const canAddDish     = SETTINGS.canAddDish();
+  const canChgStatus   = SETTINGS.canChangeOrderStatus();
+
+  document.title = `${name} — Kitchen App`;
+
+  // Cook status badge color
+  const cookColors = { 'готово': 'var(--success)', 'В процессе': 'var(--warning)', 'Выяснить': 'var(--danger)' };
+  const cookColor = cookColors[cookStatus] || 'var(--text2)';
+
+  const html = `
+    <div style="padding-top:4px;">
+      <h1 style="font-size:1.4rem;font-weight:800;">
+        ${serial ? `<span style="color:var(--text3);font-size:.9rem;">#${serial} </span>` : ''}
+        ${escHtml(name)}
+      </h1>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center;">
+        ${dateDisp ? `<span style="color:var(--text3);font-size:.85rem;">📅 ${escHtml(dateDisp)}</span>` : ''}
+        ${eventType ? `<span style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:2px 10px;font-size:.75rem;">${escHtml(eventType)}</span>` : ''}
+        ${delivery  ? `<span style="background:rgba(255,107,53,.15);border:1px solid rgba(255,107,53,.3);border-radius:12px;padding:2px 10px;font-size:.75rem;color:var(--primary);">🚗 ${t('delivery')}</span>` : ''}
+        ${cookStatus ? `<span style="background:rgba(0,0,0,.2);border-radius:12px;padding:2px 10px;font-size:.75rem;font-weight:700;color:${cookColor};">${escHtml(cookStatus)}</span>` : ''}
+      </div>
+    </div>
+
+    <div class="order-info-grid">
+      <div class="info-cell">
+        <div class="info-cell-label" data-i18n="items">${t('items')}</div>
+        <div class="info-cell-value">${displayItems.length}</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-cell-label" data-i18n="done">${t('done')}</div>
+        <div class="info-cell-value" style="color:var(--success)">${doneCount}/${displayItems.length}</div>
+      </div>
+      ${clientName ? `<div class="info-cell">
+        <div class="info-cell-label">👤 ${t('client')}</div>
+        <div class="info-cell-value">${escHtml(clientName)}</div>
+      </div>` : ''}
+      ${clientPhone ? `<div class="info-cell">
+        <div class="info-cell-label">📞</div>
+        <div class="info-cell-value"><a href="tel:${escHtml(clientPhone)}" style="color:var(--primary)">${escHtml(clientPhone)}</a></div>
+      </div>` : ''}
+      ${(location || address) ? `<div class="info-cell" style="grid-column:span 2">
+        <div class="info-cell-label">📍 ${t('location')}</div>
+        <div class="info-cell-value">${escHtml(location || address)}</div>
+      </div>` : ''}
+      ${people ? `<div class="info-cell">
+        <div class="info-cell-label">👥 ${t('people')}</div>
+        <div class="info-cell-value">${escHtml(String(people))}</div>
+      </div>` : ''}
+      ${(status || canChgStatus) ? `<div class="info-cell">
+        <div class="info-cell-label">${t('orders')}</div>
+        <div class="info-cell-value">
+          ${canChgStatus
+            ? `<select id="orderStatusSelect" onchange="changeOrderStatus(this.value)"
+                style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
+                       padding:3px 8px;color:var(--text1);font-size:.85rem;cursor:pointer;">
+                ${CONFIG.ORDER_STATUSES.map(s =>
+                  `<option value="${escHtml(s)}"${s === status ? ' selected' : ''}>${escHtml(s)}</option>`
+                ).join('')}
+              </select>`
+            : escHtml(status)}
+        </div>
+      </div>` : ''}
+    </div>
+
+    ${notesEvent ? `<div style="background:rgba(210,153,34,.07);border:1px solid rgba(210,153,34,.3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;font-size:.85rem;">
+      📝 <strong>${t('notesEvent')}:</strong> ${escHtml(notesEvent)}
+    </div>` : ''}
+    ${notesKit ? `<div style="background:rgba(255,107,53,.07);border:1px solid rgba(255,107,53,.25);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:.85rem;">
+      🍳 <strong>${t('kitchenNotes')}:</strong> ${escHtml(notesKit)}
+    </div>` : ''}
+
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:.8rem;color:var(--text3)" data-i18n="progress">${t('progress')}</span>
+        <span style="font-size:.8rem;color:var(--success);font-weight:700">${pct}%</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+
+    ${allDone ? `<div class="all-done-banner">🎉 ${t('allDone')}</div>` : ''}
+
+    <div class="section-header">
+      <h2 data-i18n="dishes">${t('dishes')}</h2>
+      ${canAddDish ? `<button class="btn btn-ghost btn-sm no-print" onclick="openAddDish()">＋</button>` : ''}
+    </div>
+
+    <div class="dish-list-card">
+      ${!displayItems.length
+        ? `<div class="empty-state" style="padding:30px;"><p>${t('noOrders')}</p></div>`
+        : displayItems.map(li => renderLineItem(li, dishMap)).join('')}
+    </div>
+
+    ${canAddDish ? `
+    <button class="btn btn-ghost no-print" style="width:100%;margin-top:4px;" onclick="openAddDish()">
+      ＋ <span data-i18n="addDish">${t('addDish')}</span>
+    </button>` : ''}
+  `;
+
+  document.getElementById('pageContent').innerHTML = html;
+  I18N.apply();
+}
+
+function renderLineItem(li, dishMap) {
+  // Dish name: שם מאכל פורמולה is a lookup array
+  const nameLookup = field(li, CONFIG.FIELDS.LINE_ITEM_NAME);
+  const dishName   = (Array.isArray(nameLookup) ? nameLookup[0] : nameLookup) || field(li, 'Name') || '—';
+
+  const qty        = parseFloat(field(li, CONFIG.FIELDS.LINE_ITEM_QTY) || 0) || 1;
+  const noteKit    = field(li, CONFIG.FIELDS.LINE_ITEM_NOTES_KITCHEN) || '';
+  const noteClient = field(li, CONFIG.FIELDS.LINE_ITEM_NOTES_CLIENT) || '';
+  const isDone     = PROGRESS.isDone(li.id);
+  const doneTime   = PROGRESS.getTime(li.id);
+
+  // Build recipe URL via Dish (to get ratio + recipe type)
+  const dishId = linkedId(li, CONFIG.FIELDS.LINE_ITEM_DISH);
+  const dish   = dishId ? (dishMap || {})[dishId] : null;
+  const dishStatus = dish ? (field(dish, CONFIG.FIELDS.DISH_STATUS) || '') : '';
+  const base   = `item_id=${encodeURIComponent(li.id)}&order_id=${encodeURIComponent(ORDER_ID)}&dish_name=${encodeURIComponent(dishName)}&qty=${encodeURIComponent(qty)}&dish_status=${encodeURIComponent(dishStatus)}`;
+
+  let recipeUrl = null;
+  if (dish) {
+    const dishType = field(dish, CONFIG.FIELDS.DISH_TYPE) || '';
+    const ratio    = parseFloat(field(dish, CONFIG.FIELDS.DISH_RATIO) || '1') || 1;
+    if (dishType === 'מתכון מורכב') {
+      recipeUrl = `recipe.html?dish_id=${encodeURIComponent(dish.id)}&${base}`;
+    } else {
+      const recipeId = linkedId(dish, CONFIG.FIELDS.DISH_RECIPE);
+      if (recipeId) recipeUrl = `recipe.html?recipe_id=${encodeURIComponent(recipeId)}&ratio=${ratio}&${base}`;
+    }
+  } else {
+    // Fallback: use legacy direct recipe link (ratio=1)
+    const recipeId = linkedId(li, CONFIG.FIELDS.LINE_ITEM_RECIPE);
+    if (recipeId) recipeUrl = `recipe.html?recipe_id=${encodeURIComponent(recipeId)}&ratio=1&${base}`;
+  }
+
+  // Show dish type badge + weight
+  const dishType  = dish ? (field(dish, CONFIG.FIELDS.DISH_TYPE) || '') : '';
+  const isComplex = dishType === 'מתכון מורכב';
+  const weightPer   = dish ? parseFloat(field(dish, CONFIG.FIELDS.DISH_WEIGHT) || 0) || null : null;
+  const weightTotal = weightPer ? weightPer * qty : null;
+  const kosherNote  = dish ? (firstVal(dish, CONFIG.FIELDS.DISH_KOSHER_NOTE) || field(dish, CONFIG.FIELDS.DISH_KOSHER_NOTE) || '') : '';
+
+  const qrUrl = recipeUrl ? `${CONFIG.APP_URL}${recipeUrl}` : '';
+
+  return `
+  <div class="dish-row ${isDone ? 'done' : ''}" id="row_${li.id}">
+    <button class="btn-check ${isDone ? 'done' : ''}"
+      onclick="toggleDone('${li.id}')" title="${isDone ? t('markUndone') : t('markDone')}">
+      ${isDone ? '✓' : ''}
+    </button>
+
+    <div style="flex:1;min-width:0;">
+      <div class="dish-row-name ${isDone ? 'done-text' : ''}">${escHtml(dishName)}${isComplex ? ` <span style="font-size:.65rem;background:rgba(74,158,255,.2);color:#4a9eff;border-radius:4px;padding:1px 5px;vertical-align:middle;">${t('complex')}</span>` : ''}</div>
+      <div class="dish-row-meta">
+        ${isDone && doneTime
+          ? `<span style="color:var(--success)">✓ ${t('preparedAt')} ${doneTime}</span>`
+          : `<span style="color:var(--text3)">${t('notDone')}</span>`}
+        <span id="sync_${li.id}" style="font-size:.72rem;color:var(--text3);margin-inline-start:8px;"></span>
+      </div>
+      ${weightPer ? `<div style="font-size:.75rem;color:var(--text3);margin-top:3px;">
+        ⚖️ ${weightPer}g × ${qty} = <strong style="color:var(--text2);">${weightTotal}g</strong>
+      </div>` : ''}
+      ${kosherNote ? `<div style="font-size:.75rem;color:var(--warning);margin-top:3px;">⚠️ ${escHtml(kosherNote)}</div>` : ''}
+      ${noteKit    ? `<div style="font-size:.78rem;color:var(--text3);margin-top:3px;">🍳 ${escHtml(noteKit)}</div>` : ''}
+      ${noteClient ? `<div style="font-size:.78rem;color:var(--text3);margin-top:2px;">💬 ${escHtml(noteClient)}</div>` : ''}
+    </div>
+
+    <div class="dish-qty">×${qty}</div>
+
+    <div class="action-row no-print">
+      ${recipeUrl ? `<a href="${escHtml(recipeUrl)}" class="icon-btn" title="${t('recipe')}">📖</a>` : ''}
+      ${qrUrl     ? `<button class="icon-btn" onclick="showQR('${escHtml(qrUrl)}','${escHtml(dishName)}')" title="${t('qrCode')}">⬜</button>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── Toggle done — saves locally + syncs to Airtable ──
+async function toggleDone(id) {
+  const newDone = !PROGRESS.isDone(id);
+  await PROGRESS.setDone(id, newDone);  // saves locally + fires Airtable sync
+
+  // Update DOM
+  const row    = document.getElementById(`row_${id}`);
+  const btn    = row?.querySelector('.btn-check');
+  const nameEl = row?.querySelector('.dish-row-name');
+  const meta   = row?.querySelector('.dish-row-meta');
+  const sync   = document.getElementById(`sync_${id}`);
+
+  if (row) row.classList.toggle('done', newDone);
+  if (btn) { btn.classList.toggle('done', newDone); btn.textContent = newDone ? '✓' : ''; }
+  if (nameEl) nameEl.classList.toggle('done-text', newDone);
+
+  if (meta) {
+    const time = PROGRESS.getTime(id);
+    meta.innerHTML = newDone
+      ? `<span style="color:var(--success)">✓ ${t('preparedAt')} ${time}</span>`
+      : `<span style="color:var(--text3)">${t('notDone')}</span>`;
+    meta.insertAdjacentHTML('beforeend', `<span id="sync_${id}" style="font-size:.72rem;color:var(--text3);margin-inline-start:8px;"></span>`);
+  }
+
+  // Show sync status
+  const syncEl = document.getElementById(`sync_${id}`);
+  if (syncEl) {
+    syncEl.textContent = '⟳ syncing...';
+    // The PROGRESS.setDone already triggered async sync — wait a moment then check
+    setTimeout(() => {
+      if (syncEl) syncEl.textContent = '';
+    }, 2000);
+  }
+
+  updateProgressBar();
+}
+
+function updateProgressBar() {
+  const rows   = [...document.querySelectorAll('[id^="row_"]')];
+  const ids    = rows.map(r => r.id.replace('row_', ''));
+  const done   = PROGRESS.countDone(ids);
+  const pct    = ids.length ? Math.round((done / ids.length) * 100) : 0;
+  const fill   = document.querySelector('.progress-fill');
+  const pctEl  = document.querySelector('[style*="var(--success)"]');
+  if (fill) fill.style.width = `${pct}%`;
+}
+
+// ── Add Dish Modal ──
+async function openAddDish() {
+  document.getElementById('addDishModal').style.display = 'flex';
+  document.getElementById('addDishQty').value = 1;
+  document.getElementById('addDishNote').value = '';
+  document.getElementById('dishSearchInput').value = '';
+  _selectedDishId   = null;
+  _selectedCategory = null;
+  _selectedStatus   = null;
+  I18N.apply();
+
+  // Fetch dishes if not loaded (1 extra API call)
+  if (!_allDishes.length) {
+    document.getElementById('dishList').innerHTML = `<div class="loader" style="padding:20px;"><div class="spinner"></div></div>`;
+    document.getElementById('categoryRow').innerHTML = '';
+    try {
+      _allDishes = await API.getAll(CONFIG.TABLES.DISHES, { maxRecords: 300 });
+    } catch(e) {
+      document.getElementById('dishList').innerHTML = `<div style="padding:16px;color:var(--danger);">Error: ${e.message}</div>`;
+      return;
+    }
+  }
+  renderCategoryRow();
+  renderStatusRow();
+  filterDishes();
+}
+
+function renderCategoryRow() {
+  // Collect unique categories (field is a lookup array → firstVal)
+  const cats = [...new Set(_allDishes.map(d => {
+    const v = firstVal(d, CONFIG.FIELDS.DISH_CATEGORY);
+    return v ? String(v).trim() : null;
+  }).filter(Boolean))].sort();
+
+  const row = document.getElementById('categoryRow');
+  if (!cats.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  row.innerHTML = `<button class="cat-btn active" data-cat="" onclick="selectCategory('',this)">הכל</button>` +
+    cats.map(c => `<button class="cat-btn" data-cat="${escHtml(c)}" onclick="selectCategory(this.dataset.cat,this)">${escHtml(c)}</button>`).join('');
+}
+
+function selectCategory(cat, el) {
+  _selectedCategory = cat || null;
+  document.querySelectorAll('#categoryRow .cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  filterDishes();
+}
+
+function renderStatusRow() {
+  const statuses = [...new Set(
+    _allDishes.map(d => {
+      const v = field(d, CONFIG.FIELDS.DISH_STATUS);
+      return v ? String(v).trim() : null;
+    }).filter(Boolean)
+  )].sort();
+
+  const row = document.getElementById('statusRow');
+  if (!statuses.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  row.innerHTML = `<button class="cat-btn active" onclick="selectStatus('',this)">הכל</button>` +
+    statuses.map(s => {
+      const style = statusInlineStyle(s);
+      return `<button class="cat-btn" data-st="${escHtml(s)}" onclick="selectStatus(this.dataset.st,this)" style="${style}">${escHtml(s)}</button>`;
+    }).join('');
+}
+
+function selectStatus(status, el) {
+  _selectedStatus = status || null;
+  document.querySelectorAll('#statusRow .cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  filterDishes();
+}
+
+// Returns inline border+color style for status button (non-active state)
+function statusInlineStyle(s) {
+  const c = statusColor(s);
+  const map = {
+    green:  'rgba(63,185,80,0.6)',
+    yellow: 'rgba(210,153,34,0.6)',
+    red:    'rgba(248,81,73,0.6)',
+    blue:   'rgba(88,166,255,0.6)',
+  };
+  return c !== 'gray' ? `border-color:${map[c]};` : '';
+}
+
+// Returns a CSS class-color key based on status text
+function statusColor(s) {
+  if (!s) return 'gray';
+  const low = s.toLowerCase();
+  if (/פעיל|active|approved|מאושר/.test(low)) return 'green';
+  if (/בפיתוח|develop|test|טסט|בדיקה|review|ניסוי/.test(low)) return 'yellow';
+  if (/לא|inactive|ארכי|בוטל|cancel/.test(low)) return 'red';
+  if (/חדש|new|draft|טיוטה/.test(low)) return 'blue';
+  return 'gray';
+}
+
+// Returns HTML badge for status
+function statusBadgeHtml(s) {
+  if (!s) return '';
+  const clsMap = { green:'badge-green', yellow:'badge-yellow', red:'badge-red', blue:'badge-blue', gray:'badge-gray' };
+  const cls = clsMap[statusColor(s)] || 'badge-gray';
+  return `<span class="badge ${cls}" style="font-size:.62rem;margin-inline-start:6px;">${escHtml(s)}</span>`;
+}
+
+function closeAddDish() {
+  document.getElementById('addDishModal').style.display = 'none';
+}
+
+function filterDishes() {
+  const q    = document.getElementById('dishSearchInput').value.toLowerCase();
+  const list = document.getElementById('dishList');
+  const results = _allDishes.filter(d => {
+    const n = (field(d, CONFIG.FIELDS.DISH_NAME) || field(d, 'Name') || '').toLowerCase();
+    if (q && !n.includes(q)) return false;
+    if (_selectedCategory) {
+      const cat = firstVal(d, CONFIG.FIELDS.DISH_CATEGORY);
+      if (String(cat || '').trim() !== _selectedCategory) return false;
+    }
+    if (_selectedStatus) {
+      const st = String(field(d, CONFIG.FIELDS.DISH_STATUS) || '').trim();
+      if (st !== _selectedStatus) return false;
+    }
+    return true;
+  }).slice(0, 60);
+
+  if (!results.length) {
+    list.innerHTML = `<div class="dish-search-item" style="color:var(--text3);">${t('noResults')}</div>`;
+    return;
+  }
+
+  list.innerHTML = results.map(d => {
+    const name   = field(d, CONFIG.FIELDS.DISH_NAME) || field(d, 'Name') || d.id;
+    const dtype  = field(d, CONFIG.FIELDS.DISH_TYPE) || '';
+    const weight = parseFloat(field(d, CONFIG.FIELDS.DISH_WEIGHT) || 0) || null;
+    const rawUnit = firstVal(d, CONFIG.FIELDS.DISH_UNIT) || field(d, CONFIG.FIELDS.DISH_UNIT) || '';
+    const unit   = String(rawUnit).trim();
+    // Try several common price field names
+    const priceRaw = field(d, CONFIG.FIELDS.DISH_PRICE) || field(d, 'מחיר למנה') || field(d, 'Цена') || 0;
+    const price  = parseFloat(priceRaw) || null;
+
+    const complexBadge = dtype === 'מתכון מורכב'
+      ? `<span style="font-size:.62rem;background:rgba(74,158,255,.15);color:#4a9eff;border:1px solid rgba(74,158,255,.3);border-radius:4px;padding:1px 6px;margin-inline-start:6px;">${t('complex')}</span>`
+      : '';
+
+    const meta = [];
+    if (weight) meta.push(`<span>⚖️ ${weight}${unit ? ' ' + escHtml(unit) : 'г'}</span>`);
+    if (price)  meta.push(`<span>💰 ${price} ₸</span>`);
+    const metaHtml = meta.length
+      ? `<div style="display:flex;gap:12px;margin-top:5px;font-size:.72rem;color:var(--text3);">${meta.join('')}</div>`
+      : '';
+
+    const dishStatus  = field(d, CONFIG.FIELDS.DISH_STATUS) || '';
+
+    return `<div class="dish-search-item ${_selectedDishId === d.id ? 'selected' : ''}"
+      onclick="selectDish('${d.id}', this)">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">${escHtml(name)}${complexBadge}${statusBadgeHtml(dishStatus)}</div>
+      ${metaHtml}
+    </div>`;
+  }).join('');
+}
+
+function selectDish(id, el) {
+  _selectedDishId = id;
+  document.querySelectorAll('.dish-search-item').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// API calls for addDish: 1 (create line item)
+async function addDishToOrder() {
+  if (!_selectedDishId) { showToast('⚠️ ' + t('selectDishFirst'), 'error'); return; }
+  const qty  = parseInt(document.getElementById('addDishQty').value) || 1;
+  const note = document.getElementById('addDishNote').value.trim();
+
+  const btn = document.getElementById('addDishBtn');
+  btn.disabled = true;
+  btn.querySelector('span').textContent = t('adding');
+
+  try {
+    await API.create(CONFIG.TABLES.LINE_ITEMS, {
+      [CONFIG.FIELDS.LINE_ITEM_ORDER_LINK]: [ORDER_ID],
+      [CONFIG.FIELDS.LINE_ITEM_DISH]:       [_selectedDishId],
+      [CONFIG.FIELDS.LINE_ITEM_QTY]:        qty,
+      ...(note ? { [CONFIG.FIELDS.LINE_ITEM_NOTES_KITCHEN]: note } : {}),
+    });
+
+    closeAddDish();
+    showToast(`✓ ${t('dishAdded')}`, 'success');
+    setTimeout(() => loadOrder(), 500);
+  } catch (err) {
+    showToast(`⚠️ ${err.message}`, 'error');
+    btn.disabled = false;
+    btn.querySelector('span').textContent = t('add');
+  }
+}
+
+// ── QR Modal ──
+function showQR(url, title) {
+  document.getElementById('qrTitle').textContent = title;
+  document.getElementById('qrUrl').textContent = url;
+  const c = document.getElementById('qrContainer');
+  c.innerHTML = '';
+  new QRCode(c, { text: url, width: 220, height: 220,
+    colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
+  document.getElementById('qrModal').style.display = 'flex';
+}
+function closeQR() { document.getElementById('qrModal').style.display = 'none'; }
+
+function showError(msg) {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="error-state"><p>⚠️ ${t('errorLoad')}: ${escHtml(msg)}</p>
+    <button class="btn btn-ghost" onclick="loadOrder()">${t('retry')}</button></div>`;
+}
+
+// ── Change order status ──
+async function changeOrderStatus(newStatus) {
+  if (!_cachedOrder) return;
+  const sel = document.getElementById('orderStatusSelect');
+  if (sel) sel.disabled = true;
+  try {
+    await API.update(CONFIG.TABLES.ORDERS, _cachedOrder.id, {
+      [CONFIG.FIELDS.ORDER_STATUS]: newStatus,
+    });
+    // Update local cache so re-renders show the new value
+    if (_cachedOrder.fields) _cachedOrder.fields[CONFIG.FIELDS.ORDER_STATUS] = newStatus;
+    showToast('✓ Status updated');
+  } catch (e) {
+    showToast('⚠️ ' + e.message, 'error');
+    // Restore previous value in select
+    if (sel) {
+      const prev = firstVal(_cachedOrder, CONFIG.FIELDS.ORDER_STATUS) || '';
+      sel.value = prev;
+    }
+  } finally {
+    if (sel) sel.disabled = false;
+  }
+}
+
+function showToast(msg, type='') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; setTimeout(() => el.remove(), 300); }, 2500);
+}
+
+function escHtml(s) {
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

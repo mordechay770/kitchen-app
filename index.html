@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen App — Dashboard</title>
+  <link rel="stylesheet" href="css/app.css" />
+  <script src="js/settings.js"></script>
+  <script>
+    // Synchronous guard — runs before page paints, prevents flash of protected content
+    (function () {
+      if (SETTINGS.get('requireLogin') && !SETTINGS.getCurrentUser()) {
+        document.documentElement.style.visibility = 'hidden';
+        location.replace('login.html?redirect=' + encodeURIComponent(location.href));
+      } else {
+        SETTINGS.applyAppearance();
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="app-header">
+  <div class="app-header-inner">
+    <a class="app-logo" href="index.html">
+      <div class="app-logo-icon">🍳</div>
+      <span>Kitchen App</span>
+    </a>
+    <span id="apiCallCounter">API: 0 calls</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="currentUserBadge" style="font-size:.75rem;color:var(--text3);display:none;"></span>
+      <div class="lang-switcher">
+        <button class="lang-btn" data-lang="ru" onclick="I18N.set('ru')">RU</button>
+        <button class="lang-btn" data-lang="he" onclick="I18N.set('he')">HE</button>
+        <button class="lang-btn" data-lang="en" onclick="I18N.set('en')">EN</button>
+      </div>
+      <a href="admin.html" class="btn btn-ghost btn-sm" title="Admin Panel" style="padding:4px 8px;font-size:1rem;">⚙️</a>
+    </div>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<main class="app-wrap">
+
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-top:20px;flex-wrap:wrap;">
+    <div>
+      <h1 style="font-size:1.6rem;font-weight:800;" data-i18n="dashTitle">Заказы на сегодня</h1>
+      <p style="color:var(--text3);font-size:.9rem;margin-top:4px;" id="headerDate"></p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a class="btn btn-ghost" id="productionBtn" href="production.html" style="display:none;">
+        📊 <span data-i18n="production">Производство</span>
+      </a>
+      <button class="btn btn-primary" id="newOrderBtn" onclick="openNewOrder()">
+        ＋ <span data-i18n="newOrder">Новый заказ</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-bar" style="margin-top:16px;">
+    <div class="stat-card">
+      <div class="stat-value" id="statOrders">—</div>
+      <div class="stat-label" data-i18n="orders">Заказов</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statItems">—</div>
+      <div class="stat-label" data-i18n="dishes">Блюд</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value green" id="statDone">—</div>
+      <div class="stat-label" data-i18n="done">Готово</div>
+    </div>
+    <div class="stat-card" style="flex:2;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:.75rem;color:var(--text3);" data-i18n="progress">Прогресс</span>
+        <span style="font-size:.75rem;color:var(--success);font-weight:700;" id="statPercent">0%</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-fill" id="statProgress" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar" id="filterBar">
+    <input class="filter-input" id="searchInput" type="text"
+      data-i18n-ph="searchOrders" placeholder="Поиск заказов..."
+      oninput="applyFilters()" />
+    <input class="filter-input" id="dateInput" type="date"
+      style="max-width:170px;" onchange="onDateChange()" />
+    <select class="filter-select" id="statusInput" onchange="applyFilters()">
+      <option value="" data-i18n="allStatuses">Все статусы</option>
+    </select>
+  </div>
+
+  <!-- Orders list -->
+  <div id="ordersContainer">
+    <div class="loader"><div class="spinner"></div><span data-i18n="loading">Загрузка...</span></div>
+  </div>
+
+</main>
+
+<!-- ── New Order Modal ── -->
+<div id="newOrderModal" class="modal-overlay" style="display:none;" onclick="closeNewOrder()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3>＋ <span data-i18n="newOrder">Новый заказ</span></h3>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="orderName">Название заказа</label>
+      <input class="form-input" id="newOrderName" type="text" required />
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-i18n="orderDate">Дата мероприятия</label>
+      <input class="form-input" id="newOrderDate" type="datetime-local" required />
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-i18n="address">Адрес</label>
+      <input class="form-input" id="newOrderAddress" type="text" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-i18n="people">Кол-во персон</label>
+      <input class="form-input" id="newOrderPeople" type="number" min="1" />
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-primary btn-lg" style="flex:1;" id="saveOrderBtn" onclick="saveNewOrder()">
+        <span data-i18n="save">Сохранить</span>
+      </button>
+      <button class="btn btn-ghost btn-lg" style="flex:1;" onclick="closeNewOrder()">
+        <span data-i18n="cancel">Отмена</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/i18n.js"></script>
+<script>
+// ── State ──
+let allOrders = [];
+let currentDate = todayISO();
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  if (!SETTINGS.checkLoginRequired()) return;   // redirects to login.html if needed
+
+  applyUserSession();
+  updateHeaderDate();
+  document.getElementById('dateInput').value = currentDate;
+  populateStatusFilter();
+  I18N.apply();
+  loadOrders();
+
+  // Re-render on language change
+  window._rerender = () => {
+    I18N.apply();
+    renderOrders(filteredOrders());
+  };
+});
+
+function applyUserSession() {
+  const u = SETTINGS.getCurrentUser();
+
+  // Show current user in header
+  const badge = document.getElementById('currentUserBadge');
+  if (u) {
+    badge.textContent = `👤 ${u.username}`;
+    badge.style.display = '';
+    badge.style.cursor = 'pointer';
+    badge.title = 'Click to logout';
+    badge.onclick = () => { if (confirm('Logout?')) { SETTINGS.logoutUser(); location.reload(); } };
+  }
+
+  // New order button
+  document.getElementById('newOrderBtn').style.display = SETTINGS.canCreateOrder() ? '' : 'none';
+
+  // Production button
+  if (SETTINGS.canViewProduction()) {
+    const btn = document.getElementById('productionBtn');
+    btn.style.display = '';
+    btn.href = `production.html?date=${currentDate}`;
+  }
+
+  // Date picker: hide if user can only see today
+  if (!SETTINGS.canViewAllDates()) {
+    const datePicker = document.getElementById('dateInput');
+    datePicker.style.display = 'none';
+    // Force today's date — currentDate is already set to todayISO()
+  }
+}
+
+function updateHeaderDate() {
+  const d = new Date(currentDate + 'T12:00:00');
+  document.getElementById('headerDate').textContent =
+    d.toLocaleDateString('ru-RU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+
+function populateStatusFilter() {
+  const sel = document.getElementById('statusInput');
+  const allowed = SETTINGS.getAllowedStatuses();  // [] = all
+  const statuses = allowed.length
+    ? CONFIG.ORDER_STATUSES.filter(s => allowed.includes(s))
+    : CONFIG.ORDER_STATUSES;
+  statuses.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Load orders ──
+async function loadOrders() {
+  API.resetPageCounter();
+  const container = document.getElementById('ordersContainer');
+  container.innerHTML = `<div class="loader"><div class="spinner"></div><span>${t('loading')}</span></div>`;
+
+  try {
+    allOrders = await API.getOrdersByDate(currentDate);
+    updateStats();
+    renderOrders(filteredOrders());
+  } catch (err) {
+    container.innerHTML = `
+      <div class="error-state">
+        <p>⚠️ ${t('errorLoad')}: ${escHtml(err.message)}</p>
+        <button class="btn btn-ghost" onclick="loadOrders()">${t('retry')}</button>
+      </div>`;
+  }
+}
+
+function onDateChange() {
+  currentDate = document.getElementById('dateInput').value || todayISO();
+  updateHeaderDate();
+  loadOrders();
+  const pb = document.getElementById('productionBtn');
+  if (pb && pb.style.display !== 'none') pb.href = `production.html?date=${currentDate}`;
+}
+
+// ── Filter ──
+function filteredOrders() {
+  const text    = document.getElementById('searchInput')?.value.toLowerCase() || '';
+  const status  = document.getElementById('statusInput')?.value || '';
+  const allowed = SETTINGS.getAllowedStatuses();  // [] = no restriction
+  return allOrders.filter(o => {
+    const name  = (firstVal(o, CONFIG.FIELDS.ORDER_NAME) || field(o, 'Name') || '').toLowerCase();
+    const ostat = firstVal(o, CONFIG.FIELDS.ORDER_STATUS) || '';
+    return (!text    || name.includes(text))
+        && (!status  || ostat === status)
+        && (!allowed.length || allowed.includes(ostat));
+  });
+}
+
+function applyFilters() {
+  renderOrders(filteredOrders());
+}
+
+// ── Render orders ──
+function renderOrders(orders) {
+  const container = document.getElementById('ordersContainer');
+  if (!orders.length) {
+    container.innerHTML = `<div class="empty-state"><div class="emoji">📋</div><p>${t('noOrders')}</p></div>`;
+    return;
+  }
+
+  container.innerHTML = orders.map(order => {
+    const name     = firstVal(order, CONFIG.FIELDS.ORDER_NAME) || field(order, 'Name') || order.id;
+    const serial   = firstVal(order, CONFIG.FIELDS.ORDER_SERIAL) || '';
+    const dateDisp = firstVal(order, CONFIG.FIELDS.ORDER_DATE_DISPLAY) || '';
+    const status   = firstVal(order, CONFIG.FIELDS.ORDER_STATUS) || '';
+    const address  = firstVal(order, CONFIG.FIELDS.ORDER_ADDRESS) || '';
+    const itemIds  = linkedIds(order, CONFIG.FIELDS.ORDER_LINE_ITEMS);
+    const doneCount = PROGRESS.countDone(itemIds);
+    const pct      = itemIds.length ? Math.round((doneCount / itemIds.length) * 100) : 0;
+    const allDone  = itemIds.length > 0 && doneCount === itemIds.length;
+
+    const badgeHtml = allDone
+      ? `<span class="badge badge-green">✓ ${t('done')}</span>`
+      : doneCount > 0
+        ? `<span class="badge badge-yellow">${pct}%</span>`
+        : `<span class="badge badge-gray">${t('notDone')}</span>`;
+
+    return `
+    <div class="card clickable order-card" onclick="location.href='order.html?id=${order.id}'">
+      <div class="order-card-left">
+        <div class="order-card-name">${serial ? `#${serial} · ` : ''}${escHtml(name)}</div>
+        <div class="order-card-meta">
+          ${dateDisp ? `📅 ${escHtml(dateDisp)} · ` : ''}
+          ${itemIds.length} ${t('items')}
+          ${doneCount > 0 ? ` · ${doneCount}/${itemIds.length} ${t('done')}` : ''}
+          ${address ? ` · 📍 ${escHtml(address)}` : ''}
+          ${status ? ` · ${escHtml(status)}` : ''}
+        </div>
+        ${itemIds.length > 0 ? `
+        <div style="margin-top:8px;">
+          <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%"></div></div>
+        </div>` : ''}
+      </div>
+      <div class="order-card-right">
+        ${badgeHtml}
+        <span class="chevron">›</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Stats ──
+function updateStats() {
+  const allItemIds = allOrders.flatMap(o => linkedIds(o, CONFIG.FIELDS.ORDER_LINE_ITEMS));
+  const doneCount  = PROGRESS.countDone(allItemIds);
+  const pct        = allItemIds.length ? Math.round((doneCount / allItemIds.length) * 100) : 0;
+  document.getElementById('statOrders').textContent  = allOrders.length;
+  document.getElementById('statItems').textContent   = allItemIds.length;
+  document.getElementById('statDone').textContent    = doneCount;
+  document.getElementById('statProgress').style.width = `${pct}%`;
+  document.getElementById('statPercent').textContent = `${pct}%`;
+}
+
+// ── New Order Modal ──
+function openNewOrder() {
+  // Default to current filter date + noon
+  const dt = (document.getElementById('dateInput').value || todayISO()) + 'T12:00';
+  document.getElementById('newOrderDate').value = dt;
+  document.getElementById('newOrderName').value = '';
+  document.getElementById('newOrderAddress').value = '';
+  document.getElementById('newOrderPeople').value = '';
+  document.getElementById('newOrderModal').style.display = 'flex';
+}
+
+function closeNewOrder() {
+  document.getElementById('newOrderModal').style.display = 'none';
+}
+
+async function saveNewOrder() {
+  const name    = document.getElementById('newOrderName').value.trim();
+  const dateVal = document.getElementById('newOrderDate').value;
+  const address = document.getElementById('newOrderAddress').value.trim();
+  const people  = parseInt(document.getElementById('newOrderPeople').value) || null;
+
+  if (!name || !dateVal) { showToast('⚠️ Name and date required', 'error'); return; }
+
+  const btn = document.getElementById('saveOrderBtn');
+  btn.disabled = true;
+  btn.querySelector('span').textContent = t('creating');
+
+  try {
+    const newRecord = await API.create(CONFIG.TABLES.ORDERS, {
+      [CONFIG.FIELDS.ORDER_NAME]:    name,
+      [CONFIG.FIELDS.ORDER_DATE]:    new Date(dateVal).toISOString(),
+      ...(address ? { [CONFIG.FIELDS.ORDER_ADDRESS]: address } : {}),
+      ...(people  ? { [CONFIG.FIELDS.ORDER_PEOPLE]: people }   : {}),
+    });
+
+    closeNewOrder();
+    showToast(`✓ ${t('orderCreated')}`, 'success');
+    // Navigate to the new order
+    setTimeout(() => location.href = `order.html?id=${newRecord.id}`, 600);
+  } catch (err) {
+    showToast(`⚠️ ${err.message}`, 'error');
+    btn.disabled = false;
+    btn.querySelector('span').textContent = t('save');
+  }
+}
+
+// ── Toast ──
+function showToast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2500);
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
