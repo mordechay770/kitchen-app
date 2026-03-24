@@ -109,7 +109,7 @@ const CONFIG = {
   // Shared secret sent as X-Api-Key on every proxy request.
   // Must match the PROXY_SECRET environment variable set in Netlify.
   // Leave empty ('') to disable the check (e.g., local dev without Netlify).
-  PROXY_SECRET: '',
+  PROXY_SECRET: 'ergsthv_tbrbybr530536075',
 
   APP_URL: (() => {
     try {
